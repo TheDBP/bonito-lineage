@@ -48,6 +48,7 @@ behaviour of its own.
 | `clean` | `turbo-clean` | nothing — this is the baseline |
 | `libre` | `turbo-libre` | `fdroid`, `firefox`, `k9`, `termoneplus`, `kdeconnect` |
 | `full` | `turbo` | `fdroid`, `firefox`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `root` |
+| `cloud` | `turbo-cloud` | `full` with `firefox` traded for `nextcloud-core` (Files, Talk, NextPush) |
 
 Every preset also carries the shared set, which is what makes this build look and behave the way
 it does regardless of which preset you pick:
@@ -62,8 +63,10 @@ EXTRA_OPTIONS=oem PRESET=full ./forge/bootstrap.sh          # tag turbo-oem
 EXTRA_OPTIONS=nextcloud PRESET=libre ./forge/bootstrap.sh   # tag turbo-libre-nextcloud
 ```
 
-The Nextcloud bundle fits on `libre` or `clean` only: `full` with GApps is already within 125 MB of
-the 4 GB super partition, and the build refuses the pair at lunch.
+The whole Nextcloud bundle fits on `libre` or `clean` only: `full` with GApps is already within
+125 MB of the 4 GB super partition, and the build refuses the pair at lunch. `cloud` is the way to
+have Nextcloud beside GApps: Firefox (306 MB) is the only thing big enough to make room for Files,
+Talk and NextPush (252 MB), so it goes and Jelly is the browser.
 
 Set `EXTRA_OPTIONS="oem"` in `device.conf.local` (gitignored) to get it on every build from this
 checkout. The pack here is the Nextbit Robin's (`OEM_ASSET_PACK=nextbit-robin`), on purpose: the
@@ -91,6 +94,7 @@ work on any device rather than being wired into this tree.
 | `k9` | K-9 Mail (the Thunderbird for Android codebase) as the mail client |
 | `nav-icons` | Nextbit Robin style nav-bar icons, drawn as scalable tintable vectors (on every preset) |
 | `nextcloud` | Nextcloud bundle: Files, Talk, NextPush, Deck, NC Passwords, Notes, DAVx5, Tasks — the current F-Droid build of each, fetched at build time. `EXTRA_OPTIONS=nextcloud` on `libre` or `clean`, see *Presets* |
+| `nextcloud-core` | Files, Talk and NextPush only — the `cloud` preset |
 | `nfc-off` | NFC off by default |
 | `oem` | Reclaimed stock-ROM boot animation, wallpapers and sounds — the Nextbit Robin's here, see *Presets* |
 | `root` | Magisk baked into the boot image, so the zip flashes pre-rooted |
