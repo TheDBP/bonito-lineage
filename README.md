@@ -6,7 +6,7 @@ no build config; each Android version is its own branch, named after the upstrea
 | branch | Android | status |
 |---|---|---|
 | [`lineage-22.2`](../../tree/lineage-22.2) | 15 | builds, flashes and runs |
-| [`lineage-23.2`](../../tree/lineage-23.2) | 16 | groundwork only — nothing built |
+| [`lineage-24.0`](../../tree/lineage-24.0) | 17 | groundwork only — nothing built; gated on an eBPF backport to the 4.9 kernel |
 
 Upstream LineageOS still maintains this device, so the branches are customisation on top: a short
 device patch series plus the shared options, built with
