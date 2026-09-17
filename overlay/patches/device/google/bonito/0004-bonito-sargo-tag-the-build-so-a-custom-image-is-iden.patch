@@ -1,0 +1,43 @@
+From bd36ef8d02d7ea08ecb41d4aa9b6230d7ad9adb3 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 12 Sep 2026 14:07:30 -0400
+Subject: [PATCH] bonito/sargo: tag the build so a custom image is
+ identifiable
+
+Puts the build tag in the zip filename and ro.lineage.version
+(...-UNOFFICIAL-<tag>-bonito). Overridable via TURBO_BUILD_ID, which is how the
+forge gives each preset a distinct tag; "turbo" when unset.
+
+Set before the common_full_phone inherit: vendor/lineage/config/version.mk reads
+TARGET_UNOFFICIAL_BUILD_ID when it is included, so a later assignment is ignored.
+---
+ lineage_bonito.mk | 3 +++
+ lineage_sargo.mk  | 3 +++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/lineage_bonito.mk b/lineage_bonito.mk
+--- a/lineage_bonito.mk
++++ b/lineage_bonito.mk
+@@ -4,6 +4,9 @@
+ # SPDX-License-Identifier: Apache-2.0
+ #
+ 
++# Build identity: ...-UNOFFICIAL-<tag>-bonito. The forge sets TURBO_BUILD_ID per preset.
++TARGET_UNOFFICIAL_BUILD_ID := $(if $(TURBO_BUILD_ID),$(TURBO_BUILD_ID),turbo)
++
+ # Inherit some common Lineage stuff.
+ $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
+ 
+diff --git a/lineage_sargo.mk b/lineage_sargo.mk
+--- a/lineage_sargo.mk
++++ b/lineage_sargo.mk
+@@ -4,6 +4,9 @@
+ # SPDX-License-Identifier: Apache-2.0
+ #
+ 
++# Build identity: ...-UNOFFICIAL-<tag>-sargo. The forge sets TURBO_BUILD_ID per preset.
++TARGET_UNOFFICIAL_BUILD_ID := $(if $(TURBO_BUILD_ID),$(TURBO_BUILD_ID),turbo)
++
+ # Inherit some common Lineage stuff.
+ $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
+ 

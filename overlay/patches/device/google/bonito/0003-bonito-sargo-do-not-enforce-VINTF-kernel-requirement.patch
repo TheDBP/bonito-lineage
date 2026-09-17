@@ -1,0 +1,26 @@
+From 3d69364e37d46906a6184a082bca8b350255444d Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 12 Sep 2026 14:15:15 -0400
+Subject: [PATCH] bonito/sargo: do not enforce VINTF kernel requirements on
+ OTA
+
+PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false. The kernel this build ships
+does not declare everything the OTA-time VINTF check expects, and the check refuses
+the package rather than warning.
+---
+ device.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/device.mk b/device.mk
+index e700bf2..4d697a2 100644
+--- a/device.mk
++++ b/device.mk
+@@ -70,7 +70,7 @@ $(call inherit-product, $(LOCAL_PATH)/utils.mk)
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/developer_gsi_keys.mk)
+ 
+ PRODUCT_CHARACTERISTICS := nosdcard
+-PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := true
++PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false
+ PRODUCT_SHIPPING_API_LEVEL := 28
+ 
+ DEVICE_PACKAGE_OVERLAYS += $(LOCAL_PATH)/overlay

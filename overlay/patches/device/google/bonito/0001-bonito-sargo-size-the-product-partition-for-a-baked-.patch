@@ -1,0 +1,45 @@
+From 88255258cce536e26cf685057621b26384389329 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 15 Sep 2026 05:05:27 -0400
+Subject: [PATCH] bonito/sargo: size the partitions for what the build bakes in
+
+Lineage reserves space in product (1000 MiB), system and system_ext (90 MiB each) so
+GApps can be flashed after install. Two of the builds here cannot carry that:
+
+- GApps baked in (WITH_GAPPS) never flashes them, and with Firefox, GApps and the OEM
+  assets in product the reservation puts super over BOARD_SUPER_PARTITION_SIZE. Trim
+  product to 32 MiB and system/system_ext to 16 MiB each.
+- Firefox without GApps (WITH_FIREFOX) is 306 MB over with the full reservation. Keep
+  512 MiB, which is what fits with margin.
+
+The clean build keeps the full reservation.
+---
+ BoardConfigLineage.mk | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/BoardConfigLineage.mk b/BoardConfigLineage.mk
+index 47bf39a3..545f2432 100644
+--- a/BoardConfigLineage.mk
++++ b/BoardConfigLineage.mk
+@@ -28,8 +28,21 @@ BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
+ # Reserve space for gapps install
+ -include vendor/lineage/config/BoardConfigReservedSize.mk
+ ifneq ($(WITH_GMS),true)
++# Lineage reserves space in product (1000 MiB), system and system_ext (90 MiB each) so GApps can
++# be flashed after install; check_partition_sizes counts it against BOARD_SUPER_PARTITION_SIZE.
++# A build with GApps baked in never flashes them, and with Firefox (306 MB), GApps and the OEM
++# assets in product the full reservation does not fit in super. Firefox alone (libre) is 306 MB
++# over with the full reservation, so it keeps 512 MiB. The clean variant keeps all of it.
++ifeq ($(WITH_GAPPS),true)
++BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE := 33554432
++BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE := 16777216
++BOARD_SYSTEM_EXTIMAGE_PARTITION_RESERVED_SIZE := 16777216
++else ifeq ($(WITH_FIREFOX),true)
++BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE := 536870912
++else
+ BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE := 1048576000
+ endif
++endif
+ 
+ # SELinux
+ BOARD_SEPOLICY_DIRS += device/google/bonito/sepolicy-lineage/dynamic

@@ -1,0 +1,163 @@
+# Pixel 3a XL — LineageOS 24.0 (Android 17) — GROUNDWORK ONLY
+
+An early attempt to take the **Pixel 3a XL** (`bonito`) to Android 17. It was a 23.2 (Android 16)
+skeleton until 2026-09-17; the gate is the same for 16 and 17 (see *The kernel gate*), and 23.x
+will freeze once 24 matures, so the target moved without anything being built in between.
+
+> **Nothing works here yet.** No build has been attempted.
+> **For a working Pixel 3a XL ROM, use the [`lineage-22.2`](../../tree/lineage-22.2) branch.**
+
+## The kernel gate
+
+Before any of the below: Android 16+ needs eBPF features this device's 4.9 kernel does not have, and
+no 4.14+ kernel exists for its SoC. The first job is adapting the 4.14-era eBPF backports onto
+`kernel/google/msm-4.9`; the device-tree work below only matters after that. Details and sources in
+[ANDROID-16.md](ANDROID-16.md), *The kernel gate*.
+
+## What exists so far
+
+The branch, a manifest pinned to the branches that actually exist, and the 22.2 device patches
+carried forward: partition sizing for baked-in GApps, schedutil/powerhint tuning, the VINTF OTA
+relaxation and the build tag (the Velvet drop is the forge's `gapps` option, not a device patch).
+
+`COMMON_OPTIONS` matches the 22.2 branch. No option has `lineage-24.0` patches in the forge yet, so
+the ones that carry patches stop the build at the option check until those are derived from the
+23.2 sets.
+
+## The shape of the job
+
+LineageOS stopped supporting this device after a stale `lineage-23.0` branch, so of the seven
+projects in the manifest only **one** has an Android 17 branch:
+
+| Project | Pinned to | Why |
+|---|---|---|
+| `ElmyraService` | **24.0** | Genuinely carried forward |
+| `gs-common` | 23.2 | Newest available |
+| `device_google_{sargo,bonito}` | 22.2 | A `23.0` branch exists but is an *ancestor* of 22.2 — abandoned 2025-08. The higher number is the older code. |
+| `kernel_google_msm-4.9` | 22.2 | Newest available |
+| `proprietary_vendor_google_*` | 22.2 | Newest available |
+
+So this is an **Android 17 platform running Android 15 blobs and an Android 15 kernel** — a
+two-version gap, the same `hardware/lineage/compat` shape ether-20.0 carries. Carrying those six
+forward is the device-side work.
+
+The encouraging part: this device depends on `hardware/google/*` rather than per-SoC Qualcomm CAF
+trees, which is why it was picked over the LG V20 as the first Android 16+ target.
+
+## Before the first build
+
+`LUNCH_TARGET` is `lineage_bonito-cp2a-userdebug`: `cp2a` is the one release config
+`vendor/lineage` defines on `lineage-24.0` (`vars/aosp_target_release`; 23.2 was `bp4a`, 22.2
+`bp1a`). No GApps package for Android 17 is wired into the forge; `clean` and `libre` are the only
+presets that can be attempted.
+
+## More
+
+| File | What is in it |
+|---|---|
+| [ANDROID-16.md](ANDROID-16.md) | The Android 16+ analysis: the kernel gate, why this device over the V20, the stale-branch trap |
+| [forge/docs/porting-a-branch-bump.md](forge/docs/porting-a-branch-bump.md) | Run these checks *before* the first build |
+| [forge/docs/lineage-branches.md](forge/docs/lineage-branches.md) | Which branches are alive, and the stale-branch trap |
+
+## Building
+
+Nothing here is expected to build yet. When it is worth trying:
+
+```sh
+PRESET=clean ./forge/bootstrap.sh
+```
+
+One command produces one image. `PRESET` names a saved set of options from `device.conf`; `clean`
+is the one with no proprietary inputs, so it is the right first attempt.
+
+## Presets
+
+One build command produces one image. A preset is a saved selection of options — it has no
+behaviour of its own. Same as the 22.2 branch; `clean` is the right first attempt.
+
+| preset | tag | adds over `clean` |
+|---|---|---|
+| `clean` | `turbo-clean` | nothing — this is the baseline |
+| `libre` | `turbo-libre` | `fdroid`, `firefox`, `k9`, `termoneplus`, `kdeconnect` |
+| `full` | `turbo` | `fdroid`, `firefox`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `root` |
+
+Every preset also carries the shared set, which is what makes this build look and behave the way
+it does regardless of which preset you pick:
+
+`advanced-restart` `dark-default` `google-feed-off` `home-defaults` `linux` `livedisplay-off` `minimal-home` `nav-icons` `nfc-off` `setupwizard-nag-skip` `teal-skin` `teal-wallpaper` `themed-icons`
+
+`oem` is in no preset. `EXTRA_OPTIONS` adds an option to whichever preset you build, and every
+option added that way appends its name to the tag:
+
+```sh
+EXTRA_OPTIONS=oem PRESET=full ./forge/bootstrap.sh      # tag turbo-oem
+```
+
+Set `EXTRA_OPTIONS="oem"` in `device.conf.local` (gitignored) to get it on every build from this
+checkout. The pack here is the Nextbit Robin's (`OEM_ASSET_PACK=nextbit-robin`), on purpose: the
+Robin boot animation, wallpapers and sounds on a Pixel. It needs the Robin stock zip
+(`Ether_Stock_ROM_*.zip`) next to `device.conf`; those images are for your own phone.
+
+## Options
+
+Every option this device uses, and what each one does. They live in `forge/options/`, so they
+work on any device rather than being wired into this tree.
+
+| option | what it does |
+|---|---|
+| `advanced-restart` | Advanced restart in the power menu |
+| `dark-default` | Default to dark theme |
+| `fdroid` | F-Droid app store + Privileged Extension (silent installs/updates) |
+| `firefox` | Firefox (Fennec F-Droid) as the browser, replacing Jelly |
+| `gapps` | Google apps: Play Store and GMS from MindTheGapps, plus Google's versions of the stock apps |
+| `google-feed-off` | Google feed (-1 screen) off by default |
+| `home-defaults` | Home screen defaults: no icon labels, no auto-add of new apps |
+| `kdeconnect` | KDE Connect: phone <-> desktop notifications, clipboard, files, remote input |
+| `linux` | On-device Linux environment (chroot + Docker): container kernel config and cgroup fixes |
+| `livedisplay-off` | LiveDisplay off by default |
+| `minimal-home` | Minimal home screen: hotseat only, no second page |
+| `k9` | K-9 Mail (the Thunderbird for Android codebase) as the mail client |
+| `nav-icons` | Nextbit Robin style nav-bar icons, drawn as scalable tintable vectors (on every preset) |
+| `nfc-off` | NFC off by default |
+| `oem` | Reclaimed stock-ROM boot animation, wallpapers and sounds — the Nextbit Robin's here, see *Presets* |
+| `root` | Magisk baked into the boot image, so the zip flashes pre-rooted |
+| `setupwizard-nag-skip` | Skip recovery/metrics/backup setup pages |
+| `teal-skin` | Teal accent — fixed #009D94 Monet preset seed |
+| `teal-wallpaper` | Teal-shag default wallpaper (baked into framework-res) |
+| `termoneplus` | TermOne Plus terminal emulator |
+| `themed-icons` | Themed (monochrome) app icons on by default |
+
+## Device patches
+
+4 patches across 1 upstream project, applied at build time from
+`overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
+replayed on every build, so upstream stays upstream and what we changed stays legible.
+
+One patch per thing it enables.
+
+### `device/google/bonito`
+
+Carried forward from 22.2 unbuilt (the device tree is pinned to its 22.2 branch, so they apply as-is).
+
+- **0001 size the partitions for what the build bakes in** — Lineage reserves 1000 MiB in product
+  and 90 MiB each in system/system_ext for post-install GApps. With GApps, Firefox and the OEM
+  assets baked in, that pushes super over `BOARD_SUPER_PARTITION_SIZE`. Under `WITH_GAPPS`: product
+  32 MiB, system/system_ext 16 MiB each; `libre` keeps 512 MiB; `clean` keeps the full reservation.
+- **0002 schedutil and powerhint tuning** — longer `down_rate_limit_us` on both clusters so the
+  governor stops dropping frequency between frames, a higher top-app schedtune boost, powerhint
+  floors raised to match. Smoothness, not benchmark peaks.
+- **0003 do not enforce VINTF kernel requirements on OTA** —
+  `PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false`; the shipped kernel does not declare
+  everything the OTA-time check expects, and the check refuses the package rather than warning.
+- **0004 tag the build** — build tag in the zip filename and `ro.lineage.version`
+  (`…-UNOFFICIAL-<tag>-bonito`), overridable via `TURBO_BUILD_ID` (how the forge gives each preset
+  its tag). Set before the `common_full_phone` inherit, or `version.mk` never sees it.
+
+## License
+
+Apache-2.0 — see `LICENSE`. The patches under `overlay/patches/` modify Apache-2.0 (AOSP/LineageOS)
+code and carry that license.
+
+## Support
+
+This is unpaid work on phones their makers abandoned. If a build saved one from the drawer, [a donation](https://www.paypal.com/donate/?hosted_button_id=7U8PDZLK7742Q) keeps the next one coming.
