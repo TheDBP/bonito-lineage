@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <!-- Pixel 3a (sargo) device tree + common chain (sargo -> bonito -> {gs-common, kernel, ElmyraService}). -->
+  <project name="LineageOS/android_device_google_sargo"      path="device/google/sargo"      remote="github" revision="lineage-22.2" />
+  <project name="LineageOS/android_device_google_bonito"     path="device/google/bonito"     remote="github" revision="lineage-22.2" />
+  <project name="LineageOS/android_device_google_gs-common"  path="device/google/gs-common"  remote="github" revision="lineage-22.2" />
+  <project name="LineageOS/android_kernel_google_msm-4.9"    path="kernel/google/msm-4.9"    remote="github" revision="lineage-22.2" />
+  <project name="LineageOS/android_packages_apps_ElmyraService" path="packages/apps/ElmyraService" remote="github" revision="lineage-22.2" />
+  <!-- Proprietary vendor blobs (TheMuppets, per-device: sargo + its bonito common). -->
+  <project name="TheMuppets/proprietary_vendor_google_sargo"  path="vendor/google/sargo"  remote="github" revision="lineage-22.2" />
+  <project name="TheMuppets/proprietary_vendor_google_bonito" path="vendor/google/bonito" remote="github" revision="lineage-22.2" />
+</manifest>

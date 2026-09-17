@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 15 Sep 2026 05:05:27 -0400
+Subject: [PATCH] bonito/sargo: size the partitions for what the build bakes in
+
+Lineage reserves space in product (1000 MiB), system and system_ext (90 MiB each) so
+GApps can be flashed after install. Two of the builds here cannot carry that:
+
+- GApps baked in (WITH_GAPPS) never flashes them, and with Firefox, GApps and the OEM
+  assets in product the reservation puts super over BOARD_SUPER_PARTITION_SIZE. Trim
+  product to 32 MiB and system/system_ext to 16 MiB each.
+- Firefox without GApps (WITH_FIREFOX) is 306 MB over with the full reservation. Keep
+  512 MiB, which is what fits with margin.
+- The Nextcloud bundle (WITH_NEXTCLOUD, ~385 MB, EXTRA_OPTIONS on libre or clean) on top
+  of that: keep 128 MiB. With GApps as well it does not fit in super at all, so refuse at
+  lunch rather than an hour in at check_partition_sizes.
+
+The clean build keeps the full reservation.
+---
+ BoardConfigLineage.mk | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/BoardConfigLineage.mk b/BoardConfigLineage.mk
+index 47bf39a3..545f2432 100644
+--- a/BoardConfigLineage.mk
++++ b/BoardConfigLineage.mk
+@@ -28,8 +28,30 @@ BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
+ # Reserve space for gapps install
+ -include vendor/lineage/config/BoardConfigReservedSize.mk
+ ifneq ($(WITH_GMS),true)
++# Lineage reserves space in product (1000 MiB), system and system_ext (90 MiB each) so GApps can
++# be flashed after install; check_partition_sizes counts it against BOARD_SUPER_PARTITION_SIZE.
++# A build with GApps baked in never flashes them, and with Firefox (306 MB), GApps and the OEM
++# assets in product the full reservation does not fit in super. Firefox alone (libre) is 306 MB
++# over with the full reservation, so it keeps 512 MiB; with the Nextcloud bundle (~385 MB) on top
++# it keeps 128 MiB, ~235 MB of super to spare. The clean variant keeps all of it.
++#
++# GApps and the bundle together do not fit: full is 3944 MB of the 4068 MB group with the minimal
++# reservation, before the bundle. Fail at lunch, not an hour in at check_partition_sizes.
++ifeq ($(WITH_GAPPS)$(WITH_NEXTCLOUD),truetrue)
++$(error bonito: GApps and the Nextcloud bundle together overflow the super partition; build nextcloud on libre or clean)
++endif
++ifeq ($(WITH_GAPPS),true)
++BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE := 33554432
++BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE := 16777216
++BOARD_SYSTEM_EXTIMAGE_PARTITION_RESERVED_SIZE := 16777216
++else ifeq ($(WITH_NEXTCLOUD),true)
++BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE := 134217728
++else ifeq ($(WITH_FIREFOX),true)
++BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE := 536870912
++else
+ BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE := 1048576000
+ endif
++endif
+ 
+ # SELinux
+ BOARD_SEPOLICY_DIRS += device/google/bonito/sepolicy-lineage/dynamic

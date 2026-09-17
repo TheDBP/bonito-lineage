@@ -1,0 +1,35 @@
+From 3452ef82b8bcfdd6289b10bc62dfe7ce6d569604 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 12 Sep 2026 14:07:30 -0400
+Subject: [PATCH] bonito/sargo: do not enforce VINTF kernel requirements on
+ OTA
+
+PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false. The kernel this build ships
+does not declare everything the OTA-time VINTF check expects, and the check refuses
+the package rather than warning.
+---
+ device.mk | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/device.mk b/device.mk
+index e700bf2..9694195 100644
+--- a/device.mk
++++ b/device.mk
+@@ -70,7 +70,7 @@ $(call inherit-product, $(LOCAL_PATH)/utils.mk)
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/developer_gsi_keys.mk)
+ 
+ PRODUCT_CHARACTERISTICS := nosdcard
+-PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := true
++PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false
+ PRODUCT_SHIPPING_API_LEVEL := 28
+ 
+ DEVICE_PACKAGE_OVERLAYS += $(LOCAL_PATH)/overlay
+@@ -731,3 +731,8 @@ include hardware/google/pixel/citadel/citadel.mk
+ 
+ # Pixel Logger
+ include hardware/google/pixel/PixelLogger/PixelLogger.mk
++
++# ---- GApps ------------------------------------------------------------------------------------
++# Nothing here. MindTheGapps and the extracted Google app prebuilts are the gapps option now
++# (forge/options/gapps), which reaches this build through vendor/extra and is identical on every
++# device. This device adds nothing of its own at GApps time.
