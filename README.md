@@ -78,8 +78,8 @@ behaviour of its own. Same as the 22.2 branch; `clean` is the right first attemp
 | preset | tag | adds over `clean` |
 |---|---|---|
 | `clean` | `turbo-clean` | nothing — this is the baseline |
-| `libre` | `turbo-libre` | `fdroid`, `firefox`, `k9`, `termoneplus`, `kdeconnect` |
-| `full` | `turbo` | `fdroid`, `firefox`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `root` |
+| `libre` | `turbo-libre` | `fdroid`, `fulguris`, `k9`, `termoneplus`, `kdeconnect`, `connectbot`, `linphone` |
+| `full` | `turbo` | `fdroid`, `fulguris`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `root`, `connectbot`, `linphone` |
 
 Every preset also carries the shared set, which is what makes this build look and behave the way
 it does regardless of which preset you pick:
@@ -108,7 +108,10 @@ work on any device rather than being wired into this tree.
 | `advanced-restart` | Advanced restart in the power menu |
 | `dark-default` | Default to dark theme |
 | `fdroid` | F-Droid app store + Privileged Extension (silent installs/updates) |
-| `firefox` | Firefox (Fennec F-Droid) as the browser, replacing Jelly |
+| `firefox` | Firefox (Fennec F-Droid) as the browser, replacing Jelly — still available, but 320 MB staged, so no preset carries it now |
+| `fulguris` | Fulguris as the browser, replacing Jelly — a WebView browser, 9 MB where Fennec stages 320 MB |
+| `connectbot` | ConnectBot: an SSH client with saved hosts, keys and port forwarding |
+| `linphone` | Linphone: a SIP client, for voice over data where the device has no VoLTE |
 | `gapps` | Google apps: Play Store and GMS from MindTheGapps, plus Google's versions of the stock apps |
 | `google-feed-off` | Google feed (-1 screen) off by default |
 | `home-defaults` | Home screen defaults: no icon labels, no auto-add of new apps |
