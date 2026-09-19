@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 19 Sep 2026 19:42:22 -0400
+Subject: [PATCH] bonito/sargo: drop the two includes lineage-24.0 no longer
+ has
+
+This device tree is 22.2 and the platform is 24.0, so two includes point at files that no longer
+exist and product config stops before lunch:
+
+- hardware/google/pixel/vibrator/drv2624 -- the whole vibrator/ directory is gone from that repo on
+  24.0. drv2624 is the Pixel 3a's 2018 haptic driver.
+- device/google/gs-common/thermal/thermal_hal -- gs-common's thermal/ is empty at the pinned branch.
+
+Commented rather than deleted, with the reason, because both are things to restore rather than
+things that were wrong: the vibrator HAL can be vendored from the 22.2 tree, and thermal wants a
+gs-common pin that still carries it. The first question is whether a 22.2 device tree configures and
+compiles against Android 17 at all, and neither of these affects that.
+---
+ device.mk | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/device.mk b/device.mk
+index 4d697a25..b5f669c7 100644
+--- a/device.mk
++++ b/device.mk
+@@ -719,9 +719,13 @@ PRODUCT_PRODUCT_PROPERTIES += \
+ PRODUCT_VENDOR_PROPERTIES += ro.soc.manufacturer=Qualcomm
+ PRODUCT_VENDOR_PROPERTIES += ro.soc.model=SDM670
+ 
+-include hardware/google/pixel/vibrator/drv2624/device.mk
++# lineage-24.0: hardware/google/pixel dropped vibrator/ entirely; drv2624 is a 2018 part and the
++# HAL went with it. No haptics until it is vendored back or replaced.
++#include hardware/google/pixel/vibrator/drv2624/device.mk
+ include hardware/google/pixel/mm/device_legacy.mk
+-include device/google/gs-common/thermal/thermal_hal/device.mk
++# lineage-24.0: gs-common's thermal/ is empty at the branch this device pins, so there is no
++# thermal_hal to include. Thermal falls back to whatever the blobs provide.
++#include device/google/gs-common/thermal/thermal_hal/device.mk
+ 
+ # Citadel
+ include hardware/google/pixel/citadel/citadel.mk
+-- 
+2.53.0
+
