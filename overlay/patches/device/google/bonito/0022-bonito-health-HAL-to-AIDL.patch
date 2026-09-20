@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
-Date: Sun, 20 Sep 2026 15:27:46 -0400
+Date: Sun, 20 Sep 2026 15:53:46 -0400
 Subject: [PATCH] bonito: health HAL to AIDL
 
 android.hardware.health@2.1 is gone from every framework compatibility
@@ -22,13 +22,13 @@ HealthInfo overloads for everything else.
  health/BatteryInfoUpdate.h                    |   4 +-
  health/BatteryRechargingControl.cpp           |   5 +-
  health/BatteryRechargingControl.h             |   3 +-
- health/Health.cpp                             | 139 +++++++-----------
+ health/Health.cpp                             | 140 +++++++-----------
  .../android.hardware.health-service.bonito.rc |   6 +
  ...android.hardware.health-service.bonito.xml |   7 +
  init.hardware.rc                              |   4 +-
  sepolicy/vendor/qcom/common/charger.te        |   3 +-
  sepolicy/vendor/qcom/common/file_contexts     |   2 +-
- 12 files changed, 95 insertions(+), 112 deletions(-)
+ 12 files changed, 95 insertions(+), 113 deletions(-)
  create mode 100644 health/android.hardware.health-service.bonito.rc
  create mode 100644 health/android.hardware.health-service.bonito.xml
 
@@ -177,7 +177,7 @@ index 2440ce91..2dbca553 100644
    private:
      enum RechargeState state_;
 diff --git a/health/Health.cpp b/health/Health.cpp
-index 183308f5..a1269d5b 100644
+index 183308f5..ed9752d5 100644
 --- a/health/Health.cpp
 +++ b/health/Health.cpp
 @@ -13,15 +13,15 @@
@@ -227,7 +227,15 @@ index 183308f5..a1269d5b 100644
  using hardware::google::pixel::health::BatteryDefender;
  using hardware::google::pixel::health::BatteryMetricsLogger;
  using hardware::google::pixel::health::BatteryThermalControl;
-@@ -110,34 +110,27 @@ void read_emmc_version(StorageInfo* info) {
+@@ -85,7 +85,6 @@ const std::string kEmmcHealthLifetimeA{EMMC_DIR "/health/lifetimeA"};
+ const std::string kEmmcHealthLifetimeB{EMMC_DIR "/health/lifetimeB"};
+ const std::string kEmmcVersion{"/sys/block/mmcblk0/device/fwrev"};
+ const std::string kDiskStatsFile{"/sys/block/mmcblk0/stat"};
+-const std::string kEmmcName{"MMC0"};
+ 
+ std::ifstream assert_open(const std::string& path) {
+     std::ifstream stream(path);
+@@ -110,34 +109,27 @@ void read_emmc_version(StorageInfo* info) {
      info->version = ss.str();
  }
  
@@ -271,7 +279,7 @@ index 183308f5..a1269d5b 100644
  
      read_emmc_version(storage_info);
      read_value_from_file(kEmmcHealthEol, &storage_info->eol);
-@@ -149,7 +142,6 @@ void private_get_storage_info(std::vector<StorageInfo> &vec_storage_info) {
+@@ -149,7 +141,6 @@ void private_get_storage_info(std::vector<StorageInfo> &vec_storage_info) {
  void private_get_disk_stats(std::vector<DiskStats> &vec_stats) {
      vec_stats.resize(1);
      DiskStats* stats = &vec_stats[0];
@@ -279,7 +287,7 @@ index 183308f5..a1269d5b 100644
  
      auto stream = assert_open(kDiskStatsFile);
      // Regular diskstats entries
-@@ -166,74 +158,55 @@ void private_get_disk_stats(std::vector<DiskStats> &vec_stats) {
+@@ -166,74 +157,55 @@ void private_get_disk_stats(std::vector<DiskStats> &vec_stats) {
             >> stats->ioInQueue;
      return;
  }
