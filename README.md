@@ -173,6 +173,18 @@ patch is one build failure or one removed interface:
 - **0017 drop the PixelLogger sepolicy** — 0005 removed `PixelLogger.mk`, which was what put
   `hardware/google/pixel-sepolicy/logger_app` (the `logger_app` type) on the sepolicy dirs; the
   device's own `logger_app.te` then fails checkpolicy with `unknown type`. Same as coral `9e807a47`.
+- **0018 drop the wifi_perf_diag sepolicy** — its `wifi_logging_data_file` type also came from the
+  PixelLogger dir, and no `/vendor/bin/wifi_perf_diag` ships in the blobs. Coral 24.0 has neither.
+- **0019 thermal HAL from `hardware/google/pixel/thermal`** — gs-common's `thermal_hal/device.mk`
+  (dropped in 0005) only packaged that HAL and named gs-common's sepolicy dir; both are done in the
+  device tree now, sepolicy copied verbatim from 22.2 gs-common (coral `0d401e37`). Without it
+  `pixel-sepolicy/power-libperfmgr` fails on `thermal_link_device`/`vendor_thermal_prop`. The AIDL
+  thermal v3 fragment is in matrices 202504+, so `checkUnusedHals` is satisfied at level 7.
+
+Preview checkpolicy errors without a build: the failing run leaves
+`out/soong/.intermediates/system/sepolicy/vendor_sepolicy.conf/.../vendor_sepolicy.conf`; loop
+`out/host/linux-x86/bin/checkpolicy -C -M -c 30 -o /dev/null` on a copy, blanking each reported
+statement, to list every unknown type at once instead of one per 40-minute run.
 
 Preview these checks without a build: run a built tree's `out/host/linux-x86/bin/checkvintf
 --check-compat` with `--dirmap /vendor:` pointing at a directory holding the device manifest

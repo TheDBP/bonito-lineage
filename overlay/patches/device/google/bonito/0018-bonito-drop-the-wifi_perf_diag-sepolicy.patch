@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 11:54:36 -0400
+Subject: [PATCH] bonito: drop the wifi_perf_diag sepolicy
+
+Its wifi_logging_data_file type was defined by the PixelLogger sepolicy dir,
+gone since 0005/0017, so checkpolicy fails with 'unknown type
+wifi_logging_data_file'. No /vendor/bin/wifi_perf_diag ships in the blob tree,
+so the policy labelled nothing. Coral's lineage-24.0 does not carry it either.
+---
+ sepolicy/bonito-sepolicy.mk | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/sepolicy/bonito-sepolicy.mk b/sepolicy/bonito-sepolicy.mk
+index 2a285c38..a7c323f7 100644
+--- a/sepolicy/bonito-sepolicy.mk
++++ b/sepolicy/bonito-sepolicy.mk
+@@ -15,4 +15,3 @@ SYSTEM_EXT_PRIVATE_SEPOLICY_DIRS += device/google/bonito/sepolicy/system_ext/pri
+ BOARD_VENDOR_SEPOLICY_DIRS += hardware/google/pixel-sepolicy/confirmationui_hal
+ BOARD_VENDOR_SEPOLICY_DIRS += hardware/google/pixel-sepolicy/ramdump/common
+ BOARD_VENDOR_SEPOLICY_DIRS += hardware/google/pixel-sepolicy/powerstats
+-BOARD_VENDOR_SEPOLICY_DIRS += hardware/google/pixel-sepolicy/wifi_perf_diag
