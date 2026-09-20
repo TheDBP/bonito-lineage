@@ -1,0 +1,495 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 19 Sep 2026 20:42:58 -0400
+Subject: [PATCH 1/3] bonito: convert the dumpstate HAL from HIDL 1.1 to AIDL
+
+lineage-24.0 deleted hardware/interfaces/dumpstate/1.0 and 1.1; only the
+AIDL interface remains. Soong analyses every Android.bp regardless of
+PRODUCT_PACKAGES, so the HIDL service failed the whole build:
+  dumpstate/Android.bp: "android.hardware.dumpstate@1.1-service.bonito"
+  depends on undefined module "android.hardware.dumpstate@1.0"
+
+Same board dumps, same rc actions, same sepolicy domain
+(hal_dumpstate_impl). Registered as IDumpstateDevice/default via
+libbinder_ndk; the HIDL block is dropped from manifest.xml in favour of a
+vintf fragment.
+---
+ device.mk                                     |   2 +-
+ dumpstate/Android.bp                          |  10 +-
+ dumpstate/DumpstateDevice.cpp                 | 106 +++++++++---------
+ dumpstate/DumpstateDevice.h                   |  47 +++-----
+ ...droid.hardware.dumpstate-service.bonito.rc |   8 ++
+ ...roid.hardware.dumpstate-service.bonito.xml |   7 ++
+ ...d.hardware.dumpstate@1.1-service.bonito.rc |   9 --
+ dumpstate/service.cpp                         |  29 ++---
+ manifest.xml                                  |   9 --
+ sepolicy/vendor/qcom/common/file_contexts     |   1 +
+ 10 files changed, 98 insertions(+), 130 deletions(-)
+ create mode 100644 dumpstate/android.hardware.dumpstate-service.bonito.rc
+ create mode 100644 dumpstate/android.hardware.dumpstate-service.bonito.xml
+ delete mode 100644 dumpstate/android.hardware.dumpstate@1.1-service.bonito.rc
+
+diff --git a/device.mk b/device.mk
+index d68e831a..61a4cd75 100644
+--- a/device.mk
++++ b/device.mk
+@@ -561,7 +561,7 @@ PRODUCT_PACKAGES += \
+ 
+ # Dumpstate HAL
+ PRODUCT_PACKAGES += \
+-    android.hardware.dumpstate@1.1-service.bonito
++    android.hardware.dumpstate-service.bonito
+ 
+ # Storage: for factory reset protection feature
+ PRODUCT_PROPERTY_OVERRIDES += \
+diff --git a/dumpstate/Android.bp b/dumpstate/Android.bp
+index 1ccc41b5..9a366611 100644
+--- a/dumpstate/Android.bp
++++ b/dumpstate/Android.bp
+@@ -22,20 +22,20 @@ package {
+ }
+ 
+ cc_binary {
+-    name: "android.hardware.dumpstate@1.1-service.bonito",
+-    init_rc: ["android.hardware.dumpstate@1.1-service.bonito.rc"],
++    name: "android.hardware.dumpstate-service.bonito",
++    init_rc: ["android.hardware.dumpstate-service.bonito.rc"],
++    vintf_fragments: ["android.hardware.dumpstate-service.bonito.xml"],
+     relative_install_path: "hw",
+     srcs: [
+         "DumpstateDevice.cpp",
+         "service.cpp",
+     ],
+     shared_libs: [
+-        "android.hardware.dumpstate@1.0",
+-        "android.hardware.dumpstate@1.1",
++        "android.hardware.dumpstate-V1-ndk",
+         "libbase",
++        "libbinder_ndk",
+         "libcutils",
+         "libdumpstateutil",
+-        "libhidlbase",
+         "liblog",
+         "libutils",
+     ],
+diff --git a/dumpstate/DumpstateDevice.cpp b/dumpstate/DumpstateDevice.cpp
+index cae03783..8b94a871 100644
+--- a/dumpstate/DumpstateDevice.cpp
++++ b/dumpstate/DumpstateDevice.cpp
+@@ -21,7 +21,6 @@
+ #include <android-base/properties.h>
+ #include <android-base/unique_fd.h>
+ #include <cutils/properties.h>
+-#include <hidl/HidlSupport.h>
+ #include <log/log.h>
+ #include <pthread.h>
+ #include <string.h>
+@@ -51,16 +50,15 @@
+ 
+ #define VENDOR_VERBOSE_LOGGING_ENABLED_PROPERTY "persist.vendor.verbose_logging_enabled"
+ 
+-using android::os::dumpstate::CommandOptions;
+-using android::os::dumpstate::DumpFileToFd;
+-using android::os::dumpstate::PropertiesHelper;
+-using android::os::dumpstate::RunCommandToFd;
++using ::android::os::dumpstate::CommandOptions;
++using ::android::os::dumpstate::DumpFileToFd;
++using ::android::os::dumpstate::PropertiesHelper;
++using ::android::os::dumpstate::RunCommandToFd;
+ 
++namespace aidl {
+ namespace android {
+ namespace hardware {
+ namespace dumpstate {
+-namespace V1_1 {
+-namespace implementation {
+ 
+ #define DIAG_LOG_PREFIX "diag_log_"
+ #define TCPDUMP_LOG_PREFIX "tcpdump"
+@@ -246,27 +244,27 @@ static void *dumpModemThread(void *data)
+ 
+     ALOGD("dumpModemThread started\n");
+ 
+-    std::string modemLogDir = android::base::GetProperty(MODEM_LOG_LOC_PROPERTY, "");
++    std::string modemLogDir = ::android::base::GetProperty(MODEM_LOG_LOC_PROPERTY, "");
+     if (modemLogDir.empty()) {
+         ALOGD("No modem log place is set");
+         return NULL;
+     }
+ 
+-    std::string filePrefix = android::base::GetProperty(MODEM_LOG_PREFIX_PROPERTY, "");
++    std::string filePrefix = ::android::base::GetProperty(MODEM_LOG_PREFIX_PROPERTY, "");
+ 
+     if (filePrefix.empty()) {
+         ALOGD("Modem log prefix is not set");
+         return NULL;
+     }
+ 
+-    bool diagLogEnabled = android::base::GetBoolProperty(DIAG_MDLOG_PERSIST_PROPERTY, false);
+-    bool diagLogStarted = android::base::GetBoolProperty(DIAG_MDLOG_STATUS_PROPERTY, false);
++    bool diagLogEnabled = ::android::base::GetBoolProperty(DIAG_MDLOG_PERSIST_PROPERTY, false);
++    bool diagLogStarted = ::android::base::GetBoolProperty(DIAG_MDLOG_STATUS_PROPERTY, false);
+ 
+     if (diagLogEnabled) {
+         if (diagLogStarted) {
+-            android::base::SetProperty(DIAG_MDLOG_PROPERTY, "false");
++            ::android::base::SetProperty(DIAG_MDLOG_PROPERTY, "false");
+             ALOGD("Stopping diag_mdlog...\n");
+-            if (android::base::WaitForProperty(DIAG_MDLOG_STATUS_PROPERTY, "false", std::chrono::seconds(10))) {
++            if (::android::base::WaitForProperty(DIAG_MDLOG_STATUS_PROPERTY, "false", std::chrono::seconds(10))) {
+                 ALOGD("diag_mdlog exited");
+             } else {
+                 ALOGE("Waited mdlog timeout after 10 second");
+@@ -288,17 +286,17 @@ static void *dumpModemThread(void *data)
+     const std::string diagPoweronLogPath = "/data/vendor/radio/diag_logs/logs/diag_poweron_log.qmdl";
+ 
+     if (diagLogEnabled) {
+-        dumpLogs(STDOUT_FILENO, diagLogDir, modemLogAllDir, android::base::GetIntProperty(DIAG_MDLOG_NUMBER_BUGREPORT, 100), DIAG_LOG_PREFIX);
++        dumpLogs(STDOUT_FILENO, diagLogDir, modemLogAllDir, ::android::base::GetIntProperty(DIAG_MDLOG_NUMBER_BUGREPORT, 100), DIAG_LOG_PREFIX);
+ 
+         if (diagLogStarted) {
+             ALOGD("Restarting diag_mdlog...");
+-            android::base::SetProperty(DIAG_MDLOG_PROPERTY, "true");
++            ::android::base::SetProperty(DIAG_MDLOG_PROPERTY, "true");
+         }
+     }
+     copyFile(diagPoweronLogPath, modemLogAllDir + "/" + basename(diagPoweronLogPath.c_str()));
+ 
+     if (!PropertiesHelper::IsUserBuild()) {
+-        android::base::SetProperty(MODEM_EFS_DUMP_PROPERTY, "true");
++        ::android::base::SetProperty(MODEM_EFS_DUMP_PROPERTY, "true");
+ 
+         const std::string tcpdumpLogDir = "/data/vendor/tcpdump_logger/logs";
+         const std::string extendedLogDir = "/data/vendor/radio/extended_logs";
+@@ -326,9 +324,9 @@ static void *dumpModemThread(void *data)
+               "/data/vendor/rfs/mpss/modem_efs"
+             };
+ 
+-        bool tcpdumpEnabled = android::base::GetBoolProperty(TCPDUMP_PERSIST_PROPERTY, false);
++        bool tcpdumpEnabled = ::android::base::GetBoolProperty(TCPDUMP_PERSIST_PROPERTY, false);
+         if (tcpdumpEnabled) {
+-            dumpLogs(STDOUT_FILENO, tcpdumpLogDir, modemLogAllDir, android::base::GetIntProperty(TCPDUMP_NUMBER_BUGREPORT, 5), TCPDUMP_LOG_PREFIX);
++            dumpLogs(STDOUT_FILENO, tcpdumpLogDir, modemLogAllDir, ::android::base::GetIntProperty(TCPDUMP_NUMBER_BUGREPORT, 5), TCPDUMP_LOG_PREFIX);
+         }
+ 
+         for (const auto& logFile : rilAndNetmgrLogs) {
+@@ -336,13 +334,13 @@ static void *dumpModemThread(void *data)
+         }
+ 
+         dumpLogs(STDOUT_FILENO, extendedLogDir, modemLogAllDir, 100, EXTENDED_LOG_PREFIX);
+-        android::base::SetProperty(MODEM_EFS_DUMP_PROPERTY, "false");
++        ::android::base::SetProperty(MODEM_EFS_DUMP_PROPERTY, "false");
+     }
+ 
+     createTarFile(modemLogCombined, modemLogAllDir);
+ 
+             std::vector<uint8_t> buffer(65536);
+-            android::base::unique_fd fdLog(TEMP_FAILURE_RETRY(open(modemLogCombined.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK)));
++            ::android::base::unique_fd fdLog(TEMP_FAILURE_RETRY(open(modemLogCombined.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK)));
+ 
+             if (fdLog >= 0) {
+                 while (1) {
+@@ -454,7 +452,7 @@ static void DumpeMMC(int fd) {
+     DumpFileToFd(fd, "eMMC io_stats", "/sys/kernel/debug/mmc0/io_stats");
+     DumpFileToFd(fd, "eMMC req_stats", "/sys/kernel/debug/mmc0/req_stats");
+ 
+-    std::string bootdev = android::base::GetProperty(EMMC_BOOTDEVICE, "");
++    std::string bootdev = ::android::base::GetProperty(EMMC_BOOTDEVICE, "");
+     if (!bootdev.empty()) {
+         DumpFileToFd(fd, "eMMC pre_eol_info", "/sys/devices/platform/soc/" + bootdev + "/mmc_host/mmc0/mmc0:0001/pre_eol_info");
+         DumpFileToFd(fd, "eMMC life_time", "/sys/devices/platform/soc/" + bootdev + "/mmc_host/mmc0/mmc0:0001/life_time");
+@@ -467,56 +465,48 @@ static void DumpeMMC(int fd) {
+     }
+ }
+ 
+-// Methods from ::android::hardware::dumpstate::V1_0::IDumpstateDevice follow.
+-Return<void> DumpstateDevice::dumpstateBoard(const hidl_handle& handle) {
+-    // Ignore return value, just return an empty status.
+-    dumpstateBoard_1_1(handle, DumpstateMode::DEFAULT, 30 * 1000 /* timeoutMillis */);
+-    return Void();
+-}
+-
+-// Methods from ::android::hardware::dumpstate::V1_1::IDumpstateDevice follow.
+-Return<DumpstateStatus> DumpstateDevice::dumpstateBoard_1_1(const hidl_handle& handle,
+-                                                            const DumpstateMode mode,
+-                                                            const uint64_t timeoutMillis) {
++ndk::ScopedAStatus DumpstateDevice::dumpstateBoard(
++        const std::vector<::ndk::ScopedFileDescriptor>& in_fds,
++        IDumpstateDevice::DumpstateMode in_mode, int64_t in_timeoutMillis) {
+     // Unused arguments.
+-    (void) timeoutMillis;
++    (void) in_timeoutMillis;
+ 
+-    if (handle == nullptr || handle->numFds < 1) {
++    if (in_fds.size() < 1) {
+         ALOGE("no FDs\n");
+-        return DumpstateStatus::ILLEGAL_ARGUMENT;
++        return ndk::ScopedAStatus::fromExceptionCodeWithMessage(EX_ILLEGAL_ARGUMENT, "No file descriptor");
+     }
+ 
+-    int fd = handle->data[0];
++    int fd = in_fds[0].get();
+     if (fd < 0) {
+-        ALOGE("invalid FD: %d\n", handle->data[0]);
+-        return DumpstateStatus::ILLEGAL_ARGUMENT;
++        ALOGE("invalid FD: %d\n", fd);
++        return ndk::ScopedAStatus::fromExceptionCodeWithMessage(EX_ILLEGAL_ARGUMENT, "Invalid file descriptor");
+     }
+ 
+     bool isModeValid = false;
+-    for (const auto dumpstateMode : hidl_enum_range<DumpstateMode>()) {
+-        if (mode == dumpstateMode) {
++    for (const auto dumpstateMode : ndk::enum_range<IDumpstateDevice::DumpstateMode>()) {
++        if (in_mode == dumpstateMode) {
+             isModeValid = true;
+             break;
+         }
+     }
+     if (!isModeValid) {
+-        ALOGE("Invalid mode: %d\n", mode);
+-        return DumpstateStatus::ILLEGAL_ARGUMENT;
+-    } else if (mode == DumpstateMode::WEAR) {
++        ALOGE("Invalid mode: %d\n", static_cast<int>(in_mode));
++        return ndk::ScopedAStatus::fromExceptionCodeWithMessage(EX_ILLEGAL_ARGUMENT, "Invalid mode");
++    } else if (in_mode == IDumpstateDevice::DumpstateMode::WEAR) {
+         // We aren't a Wear device.
+-        ALOGE("Unsupported mode: %d\n", mode);
+-        return DumpstateStatus::UNSUPPORTED_MODE;
++        ALOGE("Unsupported mode: %d\n", static_cast<int>(in_mode));
++        return ndk::ScopedAStatus::fromServiceSpecificErrorWithMessage(ERROR_UNSUPPORTED_MODE, "Unsupported mode");
+     }
+ 
+     RunCommandToFd(fd, "Notify modem", {"/vendor/bin/modem_svc", "-s"}, CommandOptions::WithTimeout(1).Build());
+ 
+     pthread_t modemThreadHandle = 0;
+-    if (getVerboseLoggingEnabled()) {
++    if (getVerboseLoggingEnabledImpl()) {
+         ALOGD("Verbose logging is enabled.\n");
+-        if (handle->numFds < 2) {
++        if (in_fds.size() < 2) {
+             ALOGE("no FD for modem\n");
+         } else {
+-            int fdModem = handle->data[1];
++            int fdModem = in_fds[1].get();
+             if (pthread_create(&modemThreadHandle, NULL, dumpModemThread, (void *)((long)fdModem)) != 0) {
+                 ALOGE("could not create thread for dumpModem\n");
+             }
+@@ -614,20 +604,24 @@ Return<DumpstateStatus> DumpstateDevice::dumpstateBoard_1_1(const hidl_handle& h
+         pthread_join(modemThreadHandle, NULL);
+     }
+ 
+-    return DumpstateStatus::OK;
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus DumpstateDevice::setVerboseLoggingEnabled(bool in_enable) {
++    ::android::base::SetProperty(VENDOR_VERBOSE_LOGGING_ENABLED_PROPERTY, in_enable ? "true" : "false");
++    return ndk::ScopedAStatus::ok();
+ }
+ 
+-Return<void> DumpstateDevice::setVerboseLoggingEnabled(const bool enable) {
+-    android::base::SetProperty(VENDOR_VERBOSE_LOGGING_ENABLED_PROPERTY, enable ? "true" : "false");
+-    return Void();
++ndk::ScopedAStatus DumpstateDevice::getVerboseLoggingEnabled(bool* _aidl_return) {
++    *_aidl_return = getVerboseLoggingEnabledImpl();
++    return ndk::ScopedAStatus::ok();
+ }
+ 
+-Return<bool> DumpstateDevice::getVerboseLoggingEnabled() {
+-    return android::base::GetBoolProperty(VENDOR_VERBOSE_LOGGING_ENABLED_PROPERTY, false);
++bool DumpstateDevice::getVerboseLoggingEnabledImpl() {
++    return ::android::base::GetBoolProperty(VENDOR_VERBOSE_LOGGING_ENABLED_PROPERTY, false);
+ }
+ 
+-}  // namespace implementation
+-}  // namespace V1_1
+ }  // namespace dumpstate
+ }  // namespace hardware
+ }  // namespace android
++}  // namespace aidl
+diff --git a/dumpstate/DumpstateDevice.h b/dumpstate/DumpstateDevice.h
+index c7119cb8..c6200986 100644
+--- a/dumpstate/DumpstateDevice.h
++++ b/dumpstate/DumpstateDevice.h
+@@ -13,47 +13,30 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-#ifndef ANDROID_HARDWARE_DUMPSTATE_V1_1_DUMPSTATEDEVICE_H
+-#define ANDROID_HARDWARE_DUMPSTATE_V1_1_DUMPSTATEDEVICE_H
++#pragma once
+ 
+-#include <android/hardware/dumpstate/1.1/IDumpstateDevice.h>
+-#include <hidl/MQDescriptor.h>
+-#include <hidl/Status.h>
+-#include <string>
++#include <aidl/android/hardware/dumpstate/BnDumpstateDevice.h>
++#include <aidl/android/hardware/dumpstate/IDumpstateDevice.h>
++#include <android/binder_status.h>
+ 
++namespace aidl {
+ namespace android {
+ namespace hardware {
+ namespace dumpstate {
+-namespace V1_1 {
+-namespace implementation {
+ 
+-using ::android::hardware::dumpstate::V1_1::DumpstateMode;
+-using ::android::hardware::dumpstate::V1_1::DumpstateStatus;
+-using ::android::hardware::dumpstate::V1_1::IDumpstateDevice;
+-using ::android::hardware::hidl_array;
+-using ::android::hardware::hidl_handle;
+-using ::android::hardware::hidl_string;
+-using ::android::hardware::hidl_vec;
+-using ::android::hardware::Return;
+-using ::android::hardware::Void;
+-using ::android::sp;
++class DumpstateDevice : public BnDumpstateDevice {
++  public:
++    ::ndk::ScopedAStatus dumpstateBoard(const std::vector<::ndk::ScopedFileDescriptor>& in_fds,
++                                        IDumpstateDevice::DumpstateMode in_mode,
++                                        int64_t in_timeoutMillis) override;
++    ::ndk::ScopedAStatus getVerboseLoggingEnabled(bool* _aidl_return) override;
++    ::ndk::ScopedAStatus setVerboseLoggingEnabled(bool in_enable) override;
+ 
+-struct DumpstateDevice : public IDumpstateDevice {
+-  // Methods from ::android::hardware::dumpstate::V1_0::IDumpstateDevice follow.
+-  Return<void> dumpstateBoard(const hidl_handle& h) override;
+-
+-  // Methods from ::android::hardware::dumpstate::V1_1::IDumpstateDevice follow.
+-  Return<DumpstateStatus> dumpstateBoard_1_1(const hidl_handle& h,
+-                                             const DumpstateMode mode,
+-                                             const uint64_t timeoutMillis) override;
+-  Return<void> setVerboseLoggingEnabled(const bool enable) override;
+-  Return<bool> getVerboseLoggingEnabled() override;
++  private:
++    bool getVerboseLoggingEnabledImpl();
+ };
+ 
+-}  // namespace implementation
+-}  // namespace V1_1
+ }  // namespace dumpstate
+ }  // namespace hardware
+ }  // namespace android
+-
+-#endif  // ANDROID_HARDWARE_DUMPSTATE_V1_1_DUMPSTATEDEVICE_H
++}  // namespace aidl
+diff --git a/dumpstate/android.hardware.dumpstate-service.bonito.rc b/dumpstate/android.hardware.dumpstate-service.bonito.rc
+new file mode 100644
+index 00000000..27ee4076
+--- /dev/null
++++ b/dumpstate/android.hardware.dumpstate-service.bonito.rc
+@@ -0,0 +1,8 @@
++service vendor.dumpstate-default /vendor/bin/hw/android.hardware.dumpstate-service.bonito
++    class hal
++    user system
++    group system vendor_rfs
++    interface aidl android.hardware.dumpstate.IDumpstateDevice/default
++
++on boot
++    chmod 0444 /sys/kernel/debug/tzdbg/qsee_log
+diff --git a/dumpstate/android.hardware.dumpstate-service.bonito.xml b/dumpstate/android.hardware.dumpstate-service.bonito.xml
+new file mode 100644
+index 00000000..55204d10
+--- /dev/null
++++ b/dumpstate/android.hardware.dumpstate-service.bonito.xml
+@@ -0,0 +1,7 @@
++<manifest version="1.0" type="device">
++    <hal format="aidl">
++        <name>android.hardware.dumpstate</name>
++        <version>1</version>
++        <fqname>IDumpstateDevice/default</fqname>
++    </hal>
++</manifest>
+diff --git a/dumpstate/android.hardware.dumpstate@1.1-service.bonito.rc b/dumpstate/android.hardware.dumpstate@1.1-service.bonito.rc
+deleted file mode 100644
+index 653d6cff..00000000
+--- a/dumpstate/android.hardware.dumpstate@1.1-service.bonito.rc
++++ /dev/null
+@@ -1,9 +0,0 @@
+-service vendor.dumpstate-1-1 /vendor/bin/hw/android.hardware.dumpstate@1.1-service.bonito
+-    class hal
+-    user system
+-    group system vendor_rfs
+-    interface android.hardware.dumpstate@1.0::IDumpstateDevice default
+-    interface android.hardware.dumpstate@1.1::IDumpstateDevice default
+-
+-on boot
+-    chmod 0444 /sys/kernel/debug/tzdbg/qsee_log
+diff --git a/dumpstate/service.cpp b/dumpstate/service.cpp
+index 907401fc..7d9b2bb1 100644
+--- a/dumpstate/service.cpp
++++ b/dumpstate/service.cpp
+@@ -15,29 +15,22 @@
+  */
+ #define LOG_TAG "android.hardware.dumpstate@1.1-service.bonito"
+ 
+-#include <hidl/HidlSupport.h>
+-#include <hidl/HidlTransportSupport.h>
++#include <android-base/logging.h>
++#include <android/binder_manager.h>
++#include <android/binder_process.h>
+ 
+ #include "DumpstateDevice.h"
+ 
+-using ::android::hardware::configureRpcThreadpool;
+-using ::android::hardware::dumpstate::V1_1::IDumpstateDevice;
+-using ::android::hardware::dumpstate::V1_1::implementation::DumpstateDevice;
+-using ::android::hardware::joinRpcThreadpool;
+-using ::android::sp;
+-
++using ::aidl::android::hardware::dumpstate::DumpstateDevice;
+ 
+ int main(int /* argc */, char* /* argv */ []) {
+-  sp<IDumpstateDevice> dumpstate = new DumpstateDevice;
+-  configureRpcThreadpool(1, true);
+-
+-  android::status_t status = dumpstate->registerAsService();
++  ABinderProcess_setThreadPoolMaxThreadCount(0);
++  std::shared_ptr<DumpstateDevice> dumpstate = ndk::SharedRefBase::make<DumpstateDevice>();
+ 
+-  if (status != android::OK)
+-  {
+-    ALOGE("Could not register DumpstateDevice service (%d).", status);
+-    return -1;
+-  }
++  const std::string instance = std::string() + DumpstateDevice::descriptor + "/default";
++  binder_status_t status = AServiceManager_addService(dumpstate->asBinder().get(), instance.c_str());
++  CHECK_EQ(status, STATUS_OK);
+ 
+-  joinRpcThreadpool();
++  ABinderProcess_joinThreadPool();
++  return EXIT_FAILURE;  // Unreachable
+ }
+diff --git a/manifest.xml b/manifest.xml
+index c90904cf..482c16e5 100644
+--- a/manifest.xml
++++ b/manifest.xml
+@@ -53,15 +53,6 @@
+             <instance>legacy/0</instance>
+         </interface>
+     </hal>
+-    <hal format="hidl">
+-        <name>android.hardware.dumpstate</name>
+-        <transport>hwbinder</transport>
+-        <version>1.1</version>
+-        <interface>
+-            <name>IDumpstateDevice</name>
+-            <instance>default</instance>
+-        </interface>
+-    </hal>
+     <hal format="hidl">
+         <name>android.hardware.gatekeeper</name>
+         <transport>hwbinder</transport>
+diff --git a/sepolicy/vendor/qcom/common/file_contexts b/sepolicy/vendor/qcom/common/file_contexts
+index 8338bc14..b87e44e9 100644
+--- a/sepolicy/vendor/qcom/common/file_contexts
++++ b/sepolicy/vendor/qcom/common/file_contexts
+@@ -88,6 +88,7 @@
+ /bt_firmware(/.*)?              u:object_r:bt_firmware_file:s0
+ 
+ /vendor/bin/hw/android\.hardware\.dumpstate@1\.[01]-service\.bonito      u:object_r:hal_dumpstate_impl_exec:s0
++/vendor/bin/hw/android\.hardware\.dumpstate-service\.bonito              u:object_r:hal_dumpstate_impl_exec:s0
+ /vendor/bin/hw/android\.hardware\.biometrics\.fingerprint@2\.1-service\.fpc u:object_r:hal_fingerprint_default_exec:s0
+ /vendor/bin/thermal-engine      u:object_r:thermal-engine_exec:s0
+ /vendor/bin/sensors\.qti        u:object_r:sensors_exec:s0
