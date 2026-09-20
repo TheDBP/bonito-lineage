@@ -1,0 +1,4923 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 19 Sep 2026 20:30:44 -0400
+Subject: [PATCH] Revert "pixel: Drop powerstats HAL"
+
+lineage-24.0 deleted hardware/google/pixel/powerstats because every
+supported (Tensor) Pixel ships a prebuilt power.stats HAL. bonito does
+not: device/google/bonito/powerstats builds
+android.hardware.power.stats@1.0-service.pixel from source and links
+libpixelpowerstats from this directory. Restore it as it was at the
+commit before the drop; nothing in it depends on the pixel sub-namespaces
+24.0 introduced.
+
+This reverts commit 156cf7687d5df22690267054fdb3a160e0494477.
+---
+ powerstats/AidlStateResidencyDataProvider.cpp | 222 +++++++
+ powerstats/Android.bp                         |  85 +++
+ .../DisplayStateResidencyDataProvider.cpp     | 158 +++++
+ .../GenericStateResidencyDataProvider.cpp     | 257 ++++++++
+ powerstats/OWNERS                             |   4 +
+ powerstats/PowerStats.cpp                     | 558 ++++++++++++++++++
+ powerstats/PowerStatsAidl.cpp                 | 440 ++++++++++++++
+ powerstats/PowerStatsUtils.cpp                |  44 ++
+ powerstats/WlanStateResidencyDataProvider.cpp | 107 ++++
+ powerstats/aidl/Android.bp                    |  52 ++
+ .../powerstats/IPixelPowerStatsCallback.aidl  |  23 +
+ .../powerstats/IPixelPowerStatsProvider.aidl  |  24 +
+ .../IPixelStateResidencyCallback.aidl         |  24 +
+ .../IPixelStateResidencyProvider.aidl         |  30 +
+ .../vendor/powerstats/StateResidencyData.aidl |  24 +
+ ...roid.hardware.power.stats-service.pixel.rc |  18 +
+ ...oid.hardware.power.stats-service.pixel.xml |   7 +
+ .../DisplayStateResidencyDataProvider.cpp     | 166 ++++++
+ .../GenericStateResidencyDataProvider.cpp     | 208 +++++++
+ .../IioEnergyMeterDataProvider.cpp            | 234 ++++++++
+ .../IioEnergyMeterDataSelector.cpp            | 136 +++++
+ .../PixelStateResidencyDataProvider.cpp       | 180 ++++++
+ .../PowerStatsEnergyAttribution.cpp           |  95 +++
+ .../PowerStatsEnergyConsumer.cpp              | 237 ++++++++
+ .../WlanStateResidencyDataProvider.cpp        | 112 ++++
+ powerstats/include/PowerStatsAidl.h           | 112 ++++
+ .../DisplayStateResidencyDataProvider.h       |  80 +++
+ .../GenericStateResidencyDataProvider.h       |  83 +++
+ .../IioEnergyMeterDataProvider.h              |  63 ++
+ .../IioEnergyMeterDataSelector.h              |  60 ++
+ .../PixelStateResidencyDataProvider.h         | 111 ++++
+ .../PowerStatsEnergyAttribution.h             |  63 ++
+ .../dataproviders/PowerStatsEnergyConsumer.h  | 103 ++++
+ .../WlanStateResidencyDataProvider.h          |  47 ++
+ .../AidlStateResidencyDataProvider.h          |  76 +++
+ .../DisplayStateResidencyDataProvider.h       |  79 +++
+ .../GenericStateResidencyDataProvider.h       |  81 +++
+ .../include/pixelpowerstats/PowerStats.h      | 122 ++++
+ .../include/pixelpowerstats/PowerStatsUtils.h |  23 +
+ .../WlanStateResidencyDataProvider.h          |  32 +
+ 40 files changed, 4580 insertions(+)
+ create mode 100644 powerstats/AidlStateResidencyDataProvider.cpp
+ create mode 100644 powerstats/Android.bp
+ create mode 100644 powerstats/DisplayStateResidencyDataProvider.cpp
+ create mode 100644 powerstats/GenericStateResidencyDataProvider.cpp
+ create mode 100644 powerstats/OWNERS
+ create mode 100644 powerstats/PowerStats.cpp
+ create mode 100644 powerstats/PowerStatsAidl.cpp
+ create mode 100644 powerstats/PowerStatsUtils.cpp
+ create mode 100644 powerstats/WlanStateResidencyDataProvider.cpp
+ create mode 100644 powerstats/aidl/Android.bp
+ create mode 100644 powerstats/aidl/android/vendor/powerstats/IPixelPowerStatsCallback.aidl
+ create mode 100644 powerstats/aidl/android/vendor/powerstats/IPixelPowerStatsProvider.aidl
+ create mode 100644 powerstats/aidl/android/vendor/powerstats/IPixelStateResidencyCallback.aidl
+ create mode 100644 powerstats/aidl/android/vendor/powerstats/IPixelStateResidencyProvider.aidl
+ create mode 100644 powerstats/aidl/android/vendor/powerstats/StateResidencyData.aidl
+ create mode 100644 powerstats/android.hardware.power.stats-service.pixel.rc
+ create mode 100644 powerstats/android.hardware.power.stats-service.pixel.xml
+ create mode 100644 powerstats/dataproviders/DisplayStateResidencyDataProvider.cpp
+ create mode 100644 powerstats/dataproviders/GenericStateResidencyDataProvider.cpp
+ create mode 100644 powerstats/dataproviders/IioEnergyMeterDataProvider.cpp
+ create mode 100644 powerstats/dataproviders/IioEnergyMeterDataSelector.cpp
+ create mode 100644 powerstats/dataproviders/PixelStateResidencyDataProvider.cpp
+ create mode 100644 powerstats/dataproviders/PowerStatsEnergyAttribution.cpp
+ create mode 100644 powerstats/dataproviders/PowerStatsEnergyConsumer.cpp
+ create mode 100644 powerstats/dataproviders/WlanStateResidencyDataProvider.cpp
+ create mode 100644 powerstats/include/PowerStatsAidl.h
+ create mode 100644 powerstats/include/dataproviders/DisplayStateResidencyDataProvider.h
+ create mode 100644 powerstats/include/dataproviders/GenericStateResidencyDataProvider.h
+ create mode 100644 powerstats/include/dataproviders/IioEnergyMeterDataProvider.h
+ create mode 100644 powerstats/include/dataproviders/IioEnergyMeterDataSelector.h
+ create mode 100644 powerstats/include/dataproviders/PixelStateResidencyDataProvider.h
+ create mode 100644 powerstats/include/dataproviders/PowerStatsEnergyAttribution.h
+ create mode 100644 powerstats/include/dataproviders/PowerStatsEnergyConsumer.h
+ create mode 100644 powerstats/include/dataproviders/WlanStateResidencyDataProvider.h
+ create mode 100644 powerstats/include/pixelpowerstats/AidlStateResidencyDataProvider.h
+ create mode 100644 powerstats/include/pixelpowerstats/DisplayStateResidencyDataProvider.h
+ create mode 100644 powerstats/include/pixelpowerstats/GenericStateResidencyDataProvider.h
+ create mode 100644 powerstats/include/pixelpowerstats/PowerStats.h
+ create mode 100644 powerstats/include/pixelpowerstats/PowerStatsUtils.h
+ create mode 100644 powerstats/include/pixelpowerstats/WlanStateResidencyDataProvider.h
+
+diff --git a/powerstats/AidlStateResidencyDataProvider.cpp b/powerstats/AidlStateResidencyDataProvider.cpp
+new file mode 100644
+index 00000000..0ba76400
+--- /dev/null
++++ b/powerstats/AidlStateResidencyDataProvider.cpp
+@@ -0,0 +1,222 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#define LOG_TAG "libpixelpowerstats"
++
++#include <android-base/logging.h>
++#include <android-base/stringprintf.h>
++#include <binder/IPCThreadState.h>
++#include <binder/IServiceManager.h>
++#include <binder/ProcessState.h>
++#include <pixelpowerstats/AidlStateResidencyDataProvider.h>
++#include <time.h>
++using android::base::StringPrintf;
++
++static const uint64_t MAX_LATENCY_US = 2000;
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++
++void AidlStateResidencyDataProvider::addEntity(uint32_t id, std::string entityName,
++                                               std::vector<std::string> stateNames) {
++    std::lock_guard<std::mutex> lock(mLock);
++    // Create a new entry in the map of power entities
++    mEntityInfos.emplace(entityName, StateSpace{.powerEntityId = id, .stateInfos = {}});
++
++    // Create an entry for each state and assign an Id.
++    uint32_t stateId = 0;
++    auto &stateInfos = mEntityInfos.at(entityName).stateInfos;
++    for (auto stateName : stateNames) {
++        stateInfos.emplace(stateName, stateId++);
++    }
++}
++
++binderStatus AidlStateResidencyDataProvider::unregisterCallbackInternal(
++        const sp<IBinder> &callback) {
++    if (callback == nullptr) {
++        // Callback pointer is null. Return an error.
++        return binderStatus::fromExceptionCode(binderStatus::EX_NULL_POINTER, "callback is null");
++    }
++
++    bool removed = false;
++    std::lock_guard<std::mutex> lock(mLock);
++
++    // Iterate over collection of callbacks and remove the one that matches
++    for (auto it = mCallbacks.begin(); it != mCallbacks.end();) {
++        if (asBinder(it->second) == callback) {
++            LOG(INFO) << "Unregistering callback for " << it->first;
++            it = mCallbacks.erase(it);
++            removed = true;
++        } else {
++            it++;
++        }
++    }
++    (void)callback->unlinkToDeath(this);  // ignore errors
++    return removed ? binderStatus::ok()
++                   : binderStatus::fromExceptionCode(binderStatus::EX_ILLEGAL_ARGUMENT,
++                            "callback not found");
++}
++
++void AidlStateResidencyDataProvider::binderDied(const wp<IBinder> &who) {
++    binderStatus status = unregisterCallbackInternal(who.promote());
++    if (!status.isOk()) {
++        LOG(ERROR) << __func__ << "failed to unregister callback " << status.toString8();
++    }
++}
++
++binderStatus AidlStateResidencyDataProvider::unregisterCallback(
++        const sp<IPixelPowerStatsCallback> &callback) {
++    return unregisterCallbackInternal(asBinder(callback));
++}
++
++binderStatus AidlStateResidencyDataProvider::registerCallback(
++        const std::string &entityName, const sp<IPixelPowerStatsCallback> &callback) {
++    LOG(INFO) << "Registering callback for " << entityName;
++    if (callback == nullptr) {
++        // Callback pointer is null. Return an error.
++        LOG(ERROR) << __func__ << ": "
++                   << "Invalid callback. Callback is null";
++        return binderStatus::fromExceptionCode(
++                binderStatus::EX_NULL_POINTER, "Invalid callback. Callback is null");
++    }
++
++    std::lock_guard<std::mutex> lock(mLock);
++    if (mEntityInfos.find(entityName) == mEntityInfos.end()) {
++        // Could not find the entity associated with this callback. Return an error.
++        LOG(ERROR) << __func__ << ": "
++                   << "Invalid entity";
++        return binderStatus::fromExceptionCode(binderStatus::EX_ILLEGAL_ARGUMENT, "Invalid entity");
++    }
++
++    mCallbacks.emplace(entityName, callback);
++
++    // death recipient
++    auto linkRet = asBinder(callback)->linkToDeath(this, 0u /* cookie */);
++    if (linkRet != android::OK) {
++        LOG(WARNING) << __func__ << "Cannot link to death: " << linkRet;
++        // ignore the error
++    }
++
++    return binderStatus::ok();
++}
++
++static binderStatus getStatsTimed(
++        const std::pair<std::string, sp<IPixelPowerStatsCallback>> &cb,
++        std::vector<android::vendor::powerstats::StateResidencyData> &stats) {
++    struct timespec then;
++    struct timespec now;
++
++    clock_gettime(CLOCK_BOOTTIME, &then);
++    binderStatus status = cb.second->getStats(&stats);
++    clock_gettime(CLOCK_BOOTTIME, &now);
++
++    uint64_t time_elapsed_us =
++            ((now.tv_sec - then.tv_sec) * 1000000) + ((now.tv_nsec - then.tv_nsec) / 1000);
++    if (time_elapsed_us > MAX_LATENCY_US) {
++        LOG(WARNING) << "getStats for " << cb.first << " exceeded time allowed: " << time_elapsed_us
++                     << "us";
++    }
++    return status;
++}
++
++bool AidlStateResidencyDataProvider::buildResult(
++        std::string entityName,
++        const std::vector<android::vendor::powerstats::StateResidencyData> &stats,
++        PowerEntityStateResidencyResult &result) {
++    auto infosEntry = mEntityInfos.find(entityName);
++    if (infosEntry == mEntityInfos.end()) {
++        LOG(ERROR) << __func__ << " failed: " << entityName << " is not registered.";
++        return false;
++    }
++    auto stateSpace = infosEntry->second;
++    result.powerEntityId = stateSpace.powerEntityId;
++    size_t numStates = stateSpace.stateInfos.size();
++    result.stateResidencyData.resize(numStates);
++    size_t numStatesFound = 0;
++    for (auto stat = stats.begin(); (numStatesFound < numStates) && (stat != stats.end()); stat++) {
++        auto stateInfosEntry = stateSpace.stateInfos.find(stat->state);
++
++        if (stateInfosEntry != stateSpace.stateInfos.end()) {
++            PowerEntityStateResidencyData &data = result.stateResidencyData[numStatesFound++];
++            data.powerEntityStateId = stateInfosEntry->second;
++            data.totalTimeInStateMs = static_cast<uint64_t>(stat->totalTimeInStateMs);
++            data.totalStateEntryCount = static_cast<uint64_t>(stat->totalStateEntryCount);
++            data.lastEntryTimestampMs = static_cast<uint64_t>(stat->lastEntryTimestampMs);
++        } else {
++            LOG(WARNING) << "getStats for " << entityName << " returned data for unknown state "
++                         << stat->state;
++        }
++    }
++
++    return (numStatesFound == numStates);
++}
++
++bool AidlStateResidencyDataProvider::getResults(
++        std::unordered_map<uint32_t, PowerEntityStateResidencyResult> &results) {
++    std::lock_guard<std::mutex> lock(mLock);
++    // TODO (b/126260512): return cached results if time elapsed isn't large
++    size_t numResultsFound = 0;
++    size_t numResults = mEntityInfos.size();
++    for (auto cb : mCallbacks) {
++        std::vector<android::vendor::powerstats::StateResidencyData> stats;
++
++        // Get stats for the current callback
++        binderStatus status = getStatsTimed(cb, stats);
++        if (!status.isOk()) {
++            LOG(ERROR) << "getStats for " << cb.first << " failed: " << status.toString8();
++        }
++
++        PowerEntityStateResidencyResult result;
++        if (buildResult(cb.first, stats, result)) {
++            results.emplace(result.powerEntityId, result);
++            numResultsFound++;
++        } else {
++            LOG(ERROR) << "State residency data missing for " << cb.first;
++        }
++    }
++    bool ret = (numResultsFound == numResults);
++
++    // TODO (b/126260512): Cache results of the call, the return value, and the timestamp.
++    return ret;
++}
++
++std::vector<PowerEntityStateSpace> AidlStateResidencyDataProvider::getStateSpaces() {
++    std::lock_guard<std::mutex> lock(mLock);
++    std::vector<PowerEntityStateSpace> stateSpaces;
++    stateSpaces.reserve(mEntityInfos.size());
++
++    // Return state space information for every entity for which this is configured to provide data
++    for (auto info : mEntityInfos) {
++        PowerEntityStateSpace statespace = {
++                .powerEntityId = info.second.powerEntityId, .states = {}};
++        statespace.states.resize(info.second.stateInfos.size());
++        size_t i = 0;
++        for (auto state : info.second.stateInfos) {
++            statespace.states[i++] = {
++                    .powerEntityStateId = state.second, .powerEntityStateName = state.first};
++        }
++        stateSpaces.emplace_back(statespace);
++    }
++    return stateSpaces;
++}
++
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
+diff --git a/powerstats/Android.bp b/powerstats/Android.bp
+new file mode 100644
+index 00000000..ea4c99f9
+--- /dev/null
++++ b/powerstats/Android.bp
+@@ -0,0 +1,85 @@
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++cc_library_static {
++    name: "libpixelpowerstats",
++    vendor_available: true,
++    export_include_dirs: ["include"],
++
++    srcs: [
++        "PowerStats.cpp",
++        "PowerStatsUtils.cpp",
++        "GenericStateResidencyDataProvider.cpp",
++        "WlanStateResidencyDataProvider.cpp",
++        "AidlStateResidencyDataProvider.cpp",
++        "DisplayStateResidencyDataProvider.cpp",
++    ],
++
++    cflags: [
++        "-Wall",
++        "-Werror",
++    ],
++
++    shared_libs: [
++        "android.hardware.power@1.1",
++        "android.hardware.power.stats@1.0",
++        "pixelpowerstats_provider_aidl_interface-cpp",
++        "liblog",
++        "libbinder",
++    ],
++}
++
++cc_library {
++    name: "android.hardware.power.stats-impl.pixel",
++    vendor_available: true,
++    export_include_dirs: ["include"],
++    defaults: ["powerstats_pixel_defaults"],
++
++    srcs: [
++        "dataproviders/*.cpp",
++        "PowerStatsAidl.cpp",
++    ],
++}
++
++cc_defaults {
++    name: "powerstats_pixel_defaults",
++    cflags: [
++        "-Wall",
++        "-Werror",
++    ],
++
++    shared_libs: [
++        "libbase",
++        "libbinder_ndk",
++        "libcutils",
++        "libhardware",
++        "liblog",
++        "libutils",
++        "pixel_stateresidency_provider_aidl_interface-ndk",
++        "android.hardware.power.stats-V2-ndk",
++    ],
++}
++
++filegroup {
++    name: "pixel_powerstats_rc",
++    srcs: ["android.hardware.power.stats-service.pixel.rc"],
++}
++
++vintf_fragment {
++    name: "pixel_powerstats_xml",
++    src: "android.hardware.power.stats-service.pixel.xml",
++    vendor: true,
++}
++
++cc_defaults {
++    name: "powerstats_pixel_binary_defaults",
++    defaults: ["powerstats_pixel_defaults"],
++    init_rc: [":pixel_powerstats_rc"],
++    vintf_fragment_modules: ["pixel_powerstats_xml"],
++    relative_install_path: "hw",
++    proprietary: true,
++    shared_libs: [
++        "android.hardware.power.stats-impl.pixel",
++    ],
++}
+diff --git a/powerstats/DisplayStateResidencyDataProvider.cpp b/powerstats/DisplayStateResidencyDataProvider.cpp
+new file mode 100644
+index 00000000..071e16dd
+--- /dev/null
++++ b/powerstats/DisplayStateResidencyDataProvider.cpp
+@@ -0,0 +1,158 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++// TODO(b/167628903): Delete this file
++#define LOG_TAG "libpixelpowerstats"
++
++#include <android-base/chrono_utils.h>
++#include <android-base/logging.h>
++#include <android-base/properties.h>
++
++#include <pixelpowerstats/DisplayStateResidencyDataProvider.h>
++#include <pixelpowerstats/PowerStatsUtils.h>
++
++#include <chrono>
++#include <cstdio>
++#include <cstring>
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++
++DisplayStateResidencyDataProvider::DisplayStateResidencyDataProvider(
++        uint32_t id, std::string path, std::vector<std::string> states)
++    : mPath(std::move(path)),
++      mPowerEntityId(id),
++      mStates(states),
++      mCurState(-1),
++      mLooper(new Looper(true)) {
++    // Construct mResidencies
++    mResidencies.reserve(mStates.size());
++    for (uint32_t i = 0; i < mStates.size(); ++i) {
++        PowerEntityStateResidencyData p = {.powerEntityStateId = i};
++        mResidencies.emplace_back(p);
++    }
++
++    // Open display state file descriptor
++    LOG(VERBOSE) << "Opening " << mPath;
++    mFd = open(mPath.c_str(), O_RDONLY | O_NONBLOCK);
++    if (mFd < 0) {
++        PLOG(ERROR) << ":Failed to open file " << mPath;
++        return;
++    }
++
++    // Add display state file descriptor to be polled by the looper
++    mLooper->addFd(mFd, 0, Looper::EVENT_ERROR, nullptr, nullptr);
++
++    // Run the thread that will poll for changes to display state
++    LOG(VERBOSE) << "Starting DisplayStateWatcherThread";
++    mThread = std::thread(&DisplayStateResidencyDataProvider::pollLoop, this);
++}
++
++DisplayStateResidencyDataProvider::~DisplayStateResidencyDataProvider() {
++    if (mFd > 0) {
++        close(mFd);
++    }
++}
++
++bool DisplayStateResidencyDataProvider::getResults(
++        std::unordered_map<uint32_t, PowerEntityStateResidencyResult> &results) {
++    std::scoped_lock lk(mLock);
++
++    // Get current time since boot in milliseconds
++    uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
++                           ::android::base::boot_clock::now().time_since_epoch())
++                           .count();
++
++    // Construct residency result based on current residency data
++    PowerEntityStateResidencyResult result = {.powerEntityId = mPowerEntityId,
++                                              .stateResidencyData = mResidencies};
++
++    if (mCurState > -1) {
++        result.stateResidencyData[mCurState].totalTimeInStateMs +=
++                now - result.stateResidencyData[mCurState].lastEntryTimestampMs;
++    }
++
++    results.emplace(mPowerEntityId, result);
++    return true;
++}
++
++std::vector<PowerEntityStateSpace> DisplayStateResidencyDataProvider::getStateSpaces() {
++    PowerEntityStateSpace s = {.powerEntityId = mPowerEntityId};
++    s.states.resize(mStates.size());
++    for (uint32_t i = 0; i < mStates.size(); ++i) {
++        s.states[i] = {.powerEntityStateId = i, .powerEntityStateName = mStates[i]};
++    }
++
++    return {s};
++}
++
++// Called when there is new data to be read from
++// display state file descriptor indicating a state change
++void DisplayStateResidencyDataProvider::updateStats() {
++    char data[32];
++
++    // Get current time since boot in milliseconds
++    uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
++                           ::android::base::boot_clock::now().time_since_epoch())
++                           .count();
++    // Read display state
++    ssize_t ret = pread(mFd, data, sizeof(data) - 1, 0);
++    if (ret < 0) {
++        PLOG(WARNING) << "Failed to read display state";
++        return;
++    }
++    data[ret] = '\0';
++
++    LOG(VERBOSE) << "display state: " << data;
++
++    // Update residency stats based on state read
++    {  // acquire lock
++        std::scoped_lock lk(mLock);
++        for (uint32_t i = 0; i < mStates.size(); ++i) {
++            if (strstr(data, mStates[i].c_str())) {
++                // Update total time of the previous state
++                if (mCurState > -1) {
++                    mResidencies[mCurState].totalTimeInStateMs +=
++                            now - mResidencies[mCurState].lastEntryTimestampMs;
++                }
++
++                // Set current state
++                mCurState = i;
++                mResidencies[i].totalStateEntryCount++;
++                mResidencies[i].lastEntryTimestampMs = now;
++                break;
++            }
++        }
++    }  // release lock
++}
++
++void DisplayStateResidencyDataProvider::pollLoop() {
++    LOG(VERBOSE) << "DisplayStateResidencyDataProvider polling...";
++    while (true) {
++        // Poll for display state changes. Timeout set to poll indefinitely
++        if (mLooper->pollOnce(-1) >= 0) {
++            updateStats();
++        }
++    }
++}
++
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
+diff --git a/powerstats/GenericStateResidencyDataProvider.cpp b/powerstats/GenericStateResidencyDataProvider.cpp
+new file mode 100644
+index 00000000..3bdd9ba1
+--- /dev/null
++++ b/powerstats/GenericStateResidencyDataProvider.cpp
+@@ -0,0 +1,257 @@
++/*
++ * Copyright (C) 2018 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++// TODO(b/167628903): Delete this file
++#define LOG_TAG "libpixelpowerstats"
++
++#include <android-base/logging.h>
++#include <android-base/strings.h>
++#include <pixelpowerstats/GenericStateResidencyDataProvider.h>
++#include <pixelpowerstats/PowerStatsUtils.h>
++
++#include <cstdio>
++#include <cstring>
++#include <memory>
++#include <string>
++#include <unordered_map>
++#include <utility>
++#include <vector>
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++
++std::vector<StateResidencyConfig> generateGenericStateResidencyConfigs(
++        const StateResidencyConfig &stateConfig,
++        const std::vector<std::pair<std::string, std::string>> &stateHeaders) {
++    std::vector<StateResidencyConfig> stateResidencyConfigs;
++    stateResidencyConfigs.reserve(stateHeaders.size());
++    for (auto h : stateHeaders) {
++        StateResidencyConfig cfg = {stateConfig};
++        cfg.name = h.first;
++        cfg.header = h.second;
++        stateResidencyConfigs.emplace_back(cfg);
++    }
++    return stateResidencyConfigs;
++}
++
++PowerEntityConfig::PowerEntityConfig(const std::vector<StateResidencyConfig> &stateResidencyConfigs)
++    : PowerEntityConfig("", stateResidencyConfigs) {}
++
++PowerEntityConfig::PowerEntityConfig(const std::string &header,
++                                     const std::vector<StateResidencyConfig> &stateResidencyConfigs)
++    : PowerEntityConfig(0, header, stateResidencyConfigs) {}
++
++PowerEntityConfig::PowerEntityConfig(const uint32_t start_id, const std::string &header,
++                                     const std::vector<StateResidencyConfig> &stateResidencyConfigs)
++    : mHeader(header) {
++    mStateResidencyConfigs.reserve(stateResidencyConfigs.size());
++    for (uint32_t i = start_id; i < start_id + stateResidencyConfigs.size(); ++i) {
++        mStateResidencyConfigs.emplace_back(i, stateResidencyConfigs[i - start_id]);
++    }
++}
++
++static bool parseState(PowerEntityStateResidencyData *data, const StateResidencyConfig &config,
++                       FILE *fp, char **line, size_t *len) {
++    size_t numFieldsRead = 0;
++    const size_t numFields =
++            config.entryCountSupported + config.totalTimeSupported + config.lastEntrySupported;
++
++    while ((numFieldsRead < numFields) && (getline(line, len, fp) != -1)) {
++        uint64_t stat = 0;
++        // Attempt to extract data from the current line
++        if (config.entryCountSupported &&
++            utils::extractStat(*line, config.entryCountPrefix, stat)) {
++            data->totalStateEntryCount =
++                    config.entryCountTransform ? config.entryCountTransform(stat) : stat;
++            ++numFieldsRead;
++        } else if (config.totalTimeSupported &&
++                   utils::extractStat(*line, config.totalTimePrefix, stat)) {
++            data->totalTimeInStateMs =
++                    config.totalTimeTransform ? config.totalTimeTransform(stat) : stat;
++            ++numFieldsRead;
++        } else if (config.lastEntrySupported &&
++                   utils::extractStat(*line, config.lastEntryPrefix, stat)) {
++            data->lastEntryTimestampMs =
++                    config.lastEntryTransform ? config.lastEntryTransform(stat) : stat;
++            ++numFieldsRead;
++        }
++    }
++
++    // End of file was reached and not all state data was parsed. Something
++    // went wrong
++    if (numFieldsRead != numFields) {
++        LOG(ERROR) << __func__ << ": failed to parse stats for:" << config.name;
++        return false;
++    }
++
++    return true;
++}
++
++template <class T, class Func>
++static auto findNext(const std::vector<T> &collection, FILE *fp, char **line, size_t *len,
++                     Func pred) {
++    // handling the case when there is no header to look for
++    if (pred(collection.front(), "")) {
++        return collection.cbegin();
++    }
++
++    while (getline(line, len, fp) != -1) {
++        for (auto it = collection.cbegin(); it != collection.cend(); ++it) {
++            if (pred(*it, *line)) {
++                return it;
++            }
++        }
++    }
++
++    return collection.cend();
++}
++
++static bool getStateData(
++        PowerEntityStateResidencyResult *result,
++        const std::vector<std::pair<uint32_t, StateResidencyConfig>> &stateResidencyConfigs,
++        FILE *fp, char **line, size_t *len) {
++    size_t numStatesRead = 0;
++    size_t numStates = stateResidencyConfigs.size();
++    auto nextState = stateResidencyConfigs.cbegin();
++    auto endState = stateResidencyConfigs.cend();
++    auto pred = [](auto a, char const *b) {
++        // return true if b matches the header contained in a, ignoring whitespace
++        return (a.second.header == android::base::Trim(b));
++    };
++
++    result->stateResidencyData.resize(numStates);
++
++    // Search for state headers until we have found them all or can't find anymore
++    while ((numStatesRead < numStates) &&
++           (nextState = findNext<std::pair<uint32_t, StateResidencyConfig>>(
++                    stateResidencyConfigs, fp, line, len, pred)) != endState) {
++        // Found a matching state header. Parse the contents
++        PowerEntityStateResidencyData data = {.powerEntityStateId = nextState->first};
++        if (parseState(&data, nextState->second, fp, line, len)) {
++            result->stateResidencyData[numStatesRead] = data;
++            ++numStatesRead;
++        } else {
++            break;
++        }
++    }
++
++    // There was a problem parsing and we failed to get data for all of the states
++    if (numStatesRead != numStates) {
++        return false;
++    }
++
++    return true;
++}
++
++bool GenericStateResidencyDataProvider::getResults(
++        std::unordered_map<uint32_t, PowerEntityStateResidencyResult> &results) {
++    // Using FILE* instead of std::ifstream for performance reasons (b/122253123)
++    std::unique_ptr<FILE, decltype(&fclose)> fp(fopen(mPath.c_str(), "r"), fclose);
++    if (!fp) {
++        PLOG(ERROR) << __func__ << ":Failed to open file " << mPath
++                    << " Error = " << strerror(errno);
++        return false;
++    }
++
++    size_t len = 0;
++    char *line = nullptr;
++    size_t numEntitiesRead = 0;
++    size_t numEntities = mPowerEntityConfigs.size();
++    auto nextConfig = mPowerEntityConfigs.cbegin();
++    auto endConfig = mPowerEntityConfigs.cend();
++    auto pred = [](auto a, char const *b) {
++        // return true if b matches the header contained in a, ignoring whitespace
++        return (a.second.mHeader == android::base::Trim(b));
++    };
++    bool skipFindNext = false;
++
++    // Search for entity headers until we have found them all or can't find anymore
++    while ((numEntitiesRead < numEntities) &&
++           (skipFindNext ||
++            (nextConfig = findNext<decltype(mPowerEntityConfigs)::value_type>(
++                     mPowerEntityConfigs, fp.get(), &line, &len, pred)) != endConfig)) {
++        // Found a matching header. Retrieve its state data
++        PowerEntityStateResidencyResult result = {.powerEntityId = nextConfig->first};
++        if (getStateData(&result, nextConfig->second.mStateResidencyConfigs, fp.get(), &line,
++                         &len)) {
++            // If a power entity already exists, then merge in the
++            // StateResidencyData.
++            if (results.find(nextConfig->first) != results.end()) {
++                uint32_t size = results[nextConfig->first].stateResidencyData.size();
++                results[nextConfig->first].stateResidencyData.resize(
++                        size + result.stateResidencyData.size());
++                for (uint32_t i = 0; i < result.stateResidencyData.size(); i++) {
++                    results[nextConfig->first].stateResidencyData[size + i] =
++                            result.stateResidencyData[i];
++                }
++            } else {
++                results.emplace(nextConfig->first, result);
++            }
++            ++numEntitiesRead;
++        } else {
++            break;
++        }
++
++        // If the header of the next PowerEntityConfig is equal to the
++        // current, don't search for it within the file since we'll be search
++        // for more states.
++        auto currConfig = nextConfig++;
++        if (nextConfig != endConfig && nextConfig->second.mHeader == currConfig->second.mHeader) {
++            skipFindNext = true;
++        } else {
++            skipFindNext = false;
++        }
++    }
++
++    free(line);
++
++    // There was a problem gathering state residency data for one or more entities
++    if (numEntitiesRead != numEntities) {
++        LOG(ERROR) << __func__ << ":Failed to get results for " << mPath;
++        return false;
++    }
++
++    return true;
++}
++
++void GenericStateResidencyDataProvider::addEntity(uint32_t id, const PowerEntityConfig &config) {
++    mPowerEntityConfigs.emplace_back(id, config);
++}
++
++std::vector<PowerEntityStateSpace> GenericStateResidencyDataProvider::getStateSpaces() {
++    std::vector<PowerEntityStateSpace> stateSpaces;
++    stateSpaces.reserve(mPowerEntityConfigs.size());
++    for (auto config : mPowerEntityConfigs) {
++        PowerEntityStateSpace s = {.powerEntityId = config.first};
++        s.states.resize(config.second.mStateResidencyConfigs.size());
++
++        for (uint32_t i = 0; i < config.second.mStateResidencyConfigs.size(); ++i) {
++            s.states[i] = {
++                    .powerEntityStateId = config.second.mStateResidencyConfigs[i].first,
++                    .powerEntityStateName = config.second.mStateResidencyConfigs[i].second.name};
++        }
++        stateSpaces.emplace_back(s);
++    }
++    return stateSpaces;
++}
++
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
+diff --git a/powerstats/OWNERS b/powerstats/OWNERS
+new file mode 100644
+index 00000000..e0d66d72
+--- /dev/null
++++ b/powerstats/OWNERS
+@@ -0,0 +1,4 @@
++darrenhsu@google.com
++joaodias@google.com
++krossmo@google.com
++vincentwang@google.com
+diff --git a/powerstats/PowerStats.cpp b/powerstats/PowerStats.cpp
+new file mode 100644
+index 00000000..2a17a431
+--- /dev/null
++++ b/powerstats/PowerStats.cpp
+@@ -0,0 +1,558 @@
++/*
++ * Copyright (C) 2018 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#define LOG_TAG "libpixelpowerstats"
++
++#include <memory>
++#include <string>
++#include <unordered_map>
++#include <utility>
++#include <vector>
++
++#include <pixelpowerstats/PowerStats.h>
++
++#include <android-base/file.h>
++#include <android-base/logging.h>
++#include <android-base/stringprintf.h>
++
++#include <inttypes.h>
++#include <time.h>
++
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++namespace V1_0 {
++namespace implementation {
++
++void PowerStats::setRailDataProvider(std::unique_ptr<IRailDataProvider> dataProvider) {
++    mRailDataProvider = std::move(dataProvider);
++}
++
++Return<void> PowerStats::getRailInfo(getRailInfo_cb _hidl_cb) {
++    if (!mRailDataProvider) {
++        _hidl_cb({}, Status::NOT_SUPPORTED);
++        return Void();
++    }
++
++    return mRailDataProvider->getRailInfo(_hidl_cb);
++}
++
++Return<void> PowerStats::getEnergyData(const hidl_vec<uint32_t> &railIndices,
++                                       getEnergyData_cb _hidl_cb) {
++    if (!mRailDataProvider) {
++        _hidl_cb({}, Status::NOT_SUPPORTED);
++        return Void();
++    }
++
++    return mRailDataProvider->getEnergyData(railIndices, _hidl_cb);
++}
++
++Return<void> PowerStats::streamEnergyData(uint32_t timeMs, uint32_t samplingRate,
++                                          streamEnergyData_cb _hidl_cb) {
++    if (!mRailDataProvider) {
++        _hidl_cb({}, 0, 0, Status::NOT_SUPPORTED);
++        return Void();
++    }
++
++    return mRailDataProvider->streamEnergyData(timeMs, samplingRate, _hidl_cb);
++}
++
++uint32_t PowerStats::addPowerEntity(const std::string &name, PowerEntityType type) {
++    uint32_t id = mPowerEntityInfos.size();
++    mPowerEntityInfos.push_back({id, name, type});
++    return id;
++}
++
++void PowerStats::addStateResidencyDataProvider(sp<IStateResidencyDataProvider> p) {
++    std::vector<PowerEntityStateSpace> stateSpaces = p->getStateSpaces();
++    for (auto stateSpace : stateSpaces) {
++        mPowerEntityStateSpaces.emplace(stateSpace.powerEntityId, stateSpace);
++        mStateResidencyDataProviders.emplace(stateSpace.powerEntityId, p);
++    }
++}
++
++Return<void> PowerStats::getPowerEntityInfo(getPowerEntityInfo_cb _hidl_cb) {
++    // If not configured, return NOT_SUPPORTED
++    if (mPowerEntityInfos.empty()) {
++        _hidl_cb({}, Status::NOT_SUPPORTED);
++        return Void();
++    }
++
++    _hidl_cb(mPowerEntityInfos, Status::SUCCESS);
++    return Void();
++}
++
++Return<void> PowerStats::getPowerEntityStateInfo(const hidl_vec<uint32_t> &powerEntityIds,
++                                                 getPowerEntityStateInfo_cb _hidl_cb) {
++    // If not configured, return NOT_SUPPORTED
++    if (mPowerEntityStateSpaces.empty()) {
++        _hidl_cb({}, Status::NOT_SUPPORTED);
++        return Void();
++    }
++
++    std::vector<PowerEntityStateSpace> stateSpaces;
++
++    // If powerEntityIds is empty then return state space info for all entities
++    if (powerEntityIds.size() == 0) {
++        stateSpaces.reserve(mPowerEntityStateSpaces.size());
++        for (auto i : mPowerEntityStateSpaces) {
++            stateSpaces.emplace_back(i.second);
++        }
++        _hidl_cb(stateSpaces, Status::SUCCESS);
++        return Void();
++    }
++
++    // Return state space information only for valid ids
++    auto ret = Status::SUCCESS;
++    stateSpaces.reserve(powerEntityIds.size());
++    for (const uint32_t id : powerEntityIds) {
++        auto stateSpace = mPowerEntityStateSpaces.find(id);
++        if (stateSpace != mPowerEntityStateSpaces.end()) {
++            stateSpaces.emplace_back(stateSpace->second);
++        } else {
++            ret = Status::INVALID_INPUT;
++        }
++    }
++
++    _hidl_cb(stateSpaces, ret);
++    return Void();
++}
++
++Return<void> PowerStats::getPowerEntityStateResidencyData(
++    const hidl_vec<uint32_t> &powerEntityIds, getPowerEntityStateResidencyData_cb _hidl_cb) {
++    // If not configured, return NOT_SUPPORTED
++    if (mStateResidencyDataProviders.empty() || mPowerEntityStateSpaces.empty()) {
++        _hidl_cb({}, Status::NOT_SUPPORTED);
++        return Void();
++    }
++
++    // If powerEntityIds is empty then return data for all supported entities
++    if (powerEntityIds.size() == 0) {
++        std::vector<uint32_t> ids;
++        for (auto stateSpace : mPowerEntityStateSpaces) {
++            ids.emplace_back(stateSpace.first);
++        }
++        return getPowerEntityStateResidencyData(ids, _hidl_cb);
++    }
++
++    std::unordered_map<uint32_t, PowerEntityStateResidencyResult> stateResidencies;
++    std::vector<PowerEntityStateResidencyResult> results;
++    results.reserve(powerEntityIds.size());
++
++    // return results for only the given powerEntityIds
++    bool invalidInput = false;
++    bool filesystemError = false;
++    for (auto id : powerEntityIds) {
++        auto dataProvider = mStateResidencyDataProviders.find(id);
++        // skip if the given powerEntityId does not have an associated StateResidencyDataProvider
++        if (dataProvider == mStateResidencyDataProviders.end()) {
++            invalidInput = true;
++            continue;
++        }
++
++        // get the results if we have not already done so.
++        if (stateResidencies.find(id) == stateResidencies.end()) {
++            if (!dataProvider->second->getResults(stateResidencies)) {
++                filesystemError = true;
++            }
++        }
++
++        // append results
++        auto stateResidency = stateResidencies.find(id);
++        if (stateResidency != stateResidencies.end()) {
++            results.emplace_back(stateResidency->second);
++        }
++    }
++
++    auto ret = Status::SUCCESS;
++    if (filesystemError) {
++        ret = Status::FILESYSTEM_ERROR;
++    } else if (invalidInput) {
++        ret = Status::INVALID_INPUT;
++    }
++
++    _hidl_cb(results, ret);
++    return Void();
++}
++
++//
++// Debugging utilities to support printing data via debug()
++//
++
++static uint64_t getTimeElapsedMs(const struct timespec &now, const struct timespec &then) {
++    uint64_t thenMs = then.tv_sec * 1000 + (then.tv_nsec / 1000000);
++    uint64_t nowMs = now.tv_sec * 1000 + (now.tv_nsec / 1000000);
++    return (nowMs - thenMs);
++}
++
++static const char RESIDENCY_HEADER[] =
++        "\n============= PowerStats HAL 1.0 state residencies ==============\n";
++static const char RESIDENCY_FOOTER[] =
++        "========== End of PowerStats HAL 1.0 state residencies ==========\n";
++
++static bool DumpResidencyDataToFd(
++        const std::unordered_map<uint32_t, std::string> &entityNames,
++        const std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::string>> stateNames,
++        const hidl_vec<PowerEntityStateResidencyResult> &results, int fd) {
++    std::ostringstream dumpStats;
++    const char *headerFormat = "  %14s   %14s   %16s   %15s   %17s\n";
++    const char *dataFormat =
++            "  %14s   %14s   %13" PRIu64 " ms   %15" PRIu64 "   %14" PRIu64 " ms\n";
++
++    dumpStats << RESIDENCY_HEADER;
++    dumpStats << android::base::StringPrintf(headerFormat, "Entity", "State", "Total time",
++                                             "Total entries", "Last entry tstamp");
++
++    for (auto result : results) {
++        for (auto stateResidency : result.stateResidencyData) {
++            dumpStats << android::base::StringPrintf(
++                    dataFormat, entityNames.at(result.powerEntityId).c_str(),
++                    stateNames.at(result.powerEntityId)
++                              .at(stateResidency.powerEntityStateId).c_str(),
++                    stateResidency.totalTimeInStateMs, stateResidency.totalStateEntryCount,
++                    stateResidency.lastEntryTimestampMs);
++        }
++    }
++
++    dumpStats << RESIDENCY_FOOTER;
++
++    return android::base::WriteStringToFd(dumpStats.str(), fd);
++}
++
++static bool DumpResidencyDataDiffToFd(
++        const std::unordered_map<uint32_t, std::string> &entityNames,
++        const std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::string>> stateNames,
++        uint64_t elapsedTimeMs, const hidl_vec<PowerEntityStateResidencyResult> &prevResults,
++        const hidl_vec<PowerEntityStateResidencyResult> &results, int fd) {
++    std::ostringstream dumpStats;
++    const char *headerFormat = "  %14s   %14s   %16s (%14s)   %15s (%16s)   %17s (%14s)\n";
++    const char *dataFormatWithDelta =
++            "  %14s   %14s   %13" PRIu64 " ms (%14" PRId64 ")   %15" PRIu64 " (%16" PRId64 ")"
++            "   %14" PRIu64 " ms (%14" PRId64 ")\n";
++    const char *dataFormatWithoutDelta =
++            "  %14s   %14s   %13" PRIu64 " ms (          none)   %15" PRIu64 " (            none)"
++            "   %14" PRIu64 " ms (          none)\n";
++
++    dumpStats << RESIDENCY_HEADER;
++    dumpStats << "Elapsed time: "
++              << (elapsedTimeMs == 0 ? "unknown" : std::to_string(elapsedTimeMs)) << " ms\n";
++
++    dumpStats << android::base::StringPrintf(headerFormat, "Entity", "State", "Total time",
++                                             "Delta   ", "Total entries", "Delta   ",
++                                             "Last entry tstamp", "Delta ");
++
++    // Process prevResults into a 2-tier lookup table for easy reference
++    std::unordered_map<uint32_t, std::unordered_map<uint32_t, PowerEntityStateResidencyData>>
++            prevResultsMap;
++    for (auto prevResult : prevResults) {
++        prevResultsMap.emplace(prevResult.powerEntityId,
++                               std::unordered_map<uint32_t, PowerEntityStateResidencyData>());
++        for (auto stateResidency : prevResult.stateResidencyData) {
++            prevResultsMap.at(prevResult.powerEntityId)
++                    .emplace(stateResidency.powerEntityStateId, stateResidency);
++        }
++    }
++
++    // Iterate over the new result data (one "result" per entity)
++    for (auto result : results) {
++        uint32_t entityId = result.powerEntityId;
++        const char *entityName = entityNames.at(entityId).c_str();
++
++        // Look up previous result data for the same entity
++        auto prevEntityResultIt = prevResultsMap.find(entityId);
++
++        // Iterate over individual states within the current entity's new result
++        for (auto stateResidency : result.stateResidencyData) {
++            uint32_t stateId = stateResidency.powerEntityStateId;
++            const char *stateName = stateNames.at(entityId).at(stateId).c_str();
++
++            // If a previous result was found for the same entity, see if that
++            // result also contains data for the current state
++            bool prevValueFound = false;
++            if (prevEntityResultIt != prevResultsMap.end()) {
++                auto prevStateResidencyIt = prevEntityResultIt->second.find(stateId);
++                // If a previous result was found for the current entity and state, calculate the
++                // deltas and display them along with new result
++                if (prevStateResidencyIt != prevEntityResultIt->second.end()) {
++                    int64_t deltaTotalTime = stateResidency.totalTimeInStateMs -
++                                             prevStateResidencyIt->second.totalTimeInStateMs;
++                    int64_t deltaTotalCount = stateResidency.totalStateEntryCount -
++                                              prevStateResidencyIt->second.totalStateEntryCount;
++                    int64_t deltaTimestamp = stateResidency.lastEntryTimestampMs -
++                                             prevStateResidencyIt->second.lastEntryTimestampMs;
++
++                    dumpStats << android::base::StringPrintf(
++                            dataFormatWithDelta, entityName, stateName,
++                            stateResidency.totalTimeInStateMs, deltaTotalTime,
++                            stateResidency.totalStateEntryCount, deltaTotalCount,
++                            stateResidency.lastEntryTimestampMs, deltaTimestamp);
++                    prevValueFound = true;
++                }
++            }
++
++            // If no previous result was found for the current entity and state, display the new
++            // result without deltas
++            if (!prevValueFound) {
++                dumpStats << android::base::StringPrintf(
++                        dataFormatWithoutDelta, entityName, stateName,
++                        stateResidency.totalTimeInStateMs, stateResidency.totalStateEntryCount,
++                        stateResidency.lastEntryTimestampMs);
++            }
++        }
++    }
++
++    dumpStats << RESIDENCY_FOOTER;
++
++    return android::base::WriteStringToFd(dumpStats.str(), fd);
++}
++
++void PowerStats::debugStateResidency(const std::unordered_map<uint32_t, std::string> &entityNames,
++                                     int fd, bool delta) {
++    static struct timespec prevDataTime;
++    static bool prevDataTimeValid = false;
++    struct timespec dataTime;
++    bool dataTimeValid;
++
++    // Get power entity state space information
++    Status status;
++    hidl_vec<PowerEntityStateSpace> stateSpaces;
++    getPowerEntityStateInfo({}, [&status, &stateSpaces](auto rStateSpaces, auto rStatus) {
++        status = rStatus;
++        stateSpaces = rStateSpaces;
++    });
++    if (status != Status::SUCCESS) {
++        LOG(ERROR) << "Error getting state info";
++        return;
++    }
++
++    // Construct lookup table of powerEntityId, powerEntityStateId to state name
++    std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::string>> stateNames;
++    for (auto stateSpace : stateSpaces) {
++        stateNames.emplace(stateSpace.powerEntityId, std::unordered_map<uint32_t, std::string>());
++        auto &entityStateNames = stateNames.at(stateSpace.powerEntityId);
++        for (auto state : stateSpace.states) {
++            entityStateNames.emplace(state.powerEntityStateId, state.powerEntityStateName);
++        }
++    }
++
++    // Get power entity state residency data
++    hidl_vec<PowerEntityStateResidencyResult> results;
++    getPowerEntityStateResidencyData(
++            {}, [&status, &results, &dataTime, &dataTimeValid](auto rResults, auto rStatus) {
++                status = rStatus;
++                results = rResults;
++                dataTimeValid = (clock_gettime(CLOCK_BOOTTIME, &dataTime) == 0);
++            });
++
++    // This implementation of getPowerEntityStateResidencyData supports the
++    // return of partial results if status == FILESYSTEM_ERROR.
++    if (status != Status::SUCCESS) {
++        LOG(ERROR) << "Error getting residency data -- Some results missing";
++    }
++
++    if (!delta) {
++        // If no delta argument was supplied, just dump the latest data
++        if (!DumpResidencyDataToFd(entityNames, stateNames, results, fd)) {
++            PLOG(ERROR) << "Failed to dump residency data to fd";
++        }
++    } else {
++        // If the delta argument was supplied, calculate the elapsed time since the previous
++        // result and then dump the latest data along with elapsed time and deltas
++        static hidl_vec<PowerEntityStateResidencyResult> prevResults;
++        uint64_t elapsedTimeMs = 0;
++        if (dataTimeValid && prevDataTimeValid) {
++            elapsedTimeMs = getTimeElapsedMs(dataTime, prevDataTime);
++        }
++
++        if (!DumpResidencyDataDiffToFd(entityNames, stateNames, elapsedTimeMs, prevResults,
++                                       results, fd)) {
++            PLOG(ERROR) << "Failed to dump residency data delta to fd";
++        }
++
++        prevResults = results;
++        prevDataTime = dataTime;
++        prevDataTimeValid = dataTimeValid;
++    }
++}
++
++static const char ENERGYDATA_HEADER[] =
++        "\n============= PowerStats HAL 1.0 rail energy data ==============\n";
++static const char ENERGYDATA_FOOTER[] =
++        "========== End of PowerStats HAL 1.0 rail energy data ==========\n";
++
++static bool DumpEnergyDataToFd(
++        const std::unordered_map<uint32_t, std::pair<std::string, std::string>> &railNames,
++        const hidl_vec<EnergyData> &energyData, int fd) {
++    std::ostringstream dumpStats;
++    const char *headerFormat = "  %14s   %18s   %18s\n";
++    const char *dataFormat = "  %14s   %18s   %14.2f mWs\n";
++
++    dumpStats << ENERGYDATA_HEADER;
++    dumpStats << android::base::StringPrintf(headerFormat, "Subsys", "Rail", "Cumulative Energy");
++
++    for (auto data : energyData) {
++        dumpStats << android::base::StringPrintf(dataFormat, railNames.at(data.index).first.c_str(),
++                                                 railNames.at(data.index).second.c_str(),
++                                                 static_cast<float>(data.energy) / 1000.0);
++    }
++
++    dumpStats << ENERGYDATA_FOOTER;
++
++    return android::base::WriteStringToFd(dumpStats.str(), fd);
++}
++
++static bool DumpEnergyDataDiffToFd(
++        const std::unordered_map<uint32_t, std::pair<std::string, std::string>> &railNames,
++        uint64_t elapsedTimeMs, const hidl_vec<EnergyData> &prevEnergyData,
++        const hidl_vec<EnergyData> &energyData, int fd) {
++    std::ostringstream dumpStats;
++    const char *headerFormat = "  %14s   %18s   %18s (%14s)\n";
++    const char *dataFormatWithDelta = "  %14s   %18s   %14.2f mWs (%14.2f)\n";
++    const char *dataFormatWithoutDelta = "  %14s   %18s   %14.2f mWs (          none)\n";
++
++    dumpStats << ENERGYDATA_HEADER;
++    dumpStats << "Elapsed time: "
++              << (elapsedTimeMs == 0 ? "unknown" : std::to_string(elapsedTimeMs)) << " ms\n";
++
++    dumpStats << android::base::StringPrintf(headerFormat, "Subsys", "Rail", "Cumulative Energy",
++                                             "Delta   ");
++
++    std::unordered_map<uint32_t, uint64_t> prevEnergyDataMap;
++    for (auto data : prevEnergyData) {
++        prevEnergyDataMap.emplace(data.index, data.energy);
++    }
++
++    for (auto data : energyData) {
++        const char *subsysName = railNames.at(data.index).first.c_str();
++        const char *railName = railNames.at(data.index).second.c_str();
++
++        auto prevEnergyDataIt = prevEnergyDataMap.find(data.index);
++
++        if (prevEnergyDataIt != prevEnergyDataMap.end()) {
++            int64_t deltaEnergy = data.energy - prevEnergyDataIt->second;
++
++            dumpStats << android::base::StringPrintf(dataFormatWithDelta, subsysName, railName,
++                                                     static_cast<float>(data.energy) / 1000.0,
++                                                     static_cast<float>(deltaEnergy) / 1000.0);
++        } else {
++            dumpStats << android::base::StringPrintf(dataFormatWithoutDelta, subsysName, railName,
++                                                     static_cast<float>(data.energy) / 1000.0);
++        }
++    }
++
++    dumpStats << ENERGYDATA_FOOTER;
++
++    return android::base::WriteStringToFd(dumpStats.str(), fd);
++}
++
++void PowerStats::debugEnergyData(int fd, bool delta) {
++    static struct timespec prevDataTime;
++    static bool prevDataTimeValid = false;
++    struct timespec dataTime;
++    bool dataTimeValid = false;
++
++    std::unordered_map<uint32_t, std::pair<std::string, std::string>> railNames;
++    getRailInfo([&railNames](auto infos, auto /* status */) {
++        // Don't care about the status. infos will be nonempty if rail energy is supported.
++        for (auto info : infos) {
++            railNames.emplace(info.index, std::make_pair(info.subsysName, info.railName));
++        }
++    });
++    if (railNames.empty()) {
++        return;
++    }
++
++    Status status;
++    hidl_vec<EnergyData> energyData;
++    getEnergyData(
++            {}, [&status, &energyData, &dataTime, &dataTimeValid](auto rEnergyData, auto rStatus) {
++                status = rStatus;
++                energyData = rEnergyData;
++                dataTimeValid = (clock_gettime(CLOCK_BOOTTIME, &dataTime) == 0);
++            });
++
++    // getEnergyData returns no results if status != SUCCESS.
++    if (status != Status::SUCCESS) {
++        LOG(ERROR) << "Error getting rail data";
++        return;
++    }
++
++    if (!delta) {
++        if (!DumpEnergyDataToFd(railNames, energyData, fd)) {
++            PLOG(ERROR) << "Failed to dump energy data to fd";
++        }
++    } else {
++        // If the delta argument was supplied, calculate the elapsed time since the previous
++        // result and then dump the latest data along with elapsed time and deltas
++        static hidl_vec<EnergyData> prevEnergyData;
++        uint64_t elapsedTimeMs = 0;
++        if (dataTimeValid && prevDataTimeValid) {
++            elapsedTimeMs = getTimeElapsedMs(dataTime, prevDataTime);
++        }
++
++        if (!DumpEnergyDataDiffToFd(railNames, elapsedTimeMs, prevEnergyData, energyData, fd)) {
++            PLOG(ERROR) << "Failed to dump energy data delta to fd";
++        }
++
++        prevEnergyData = energyData;
++        prevDataTime = dataTime;
++        prevDataTimeValid = dataTimeValid;
++    }
++}
++
++Return<void> PowerStats::debug(const hidl_handle &handle, const hidl_vec<hidl_string> &args) {
++    if (handle == nullptr || handle->numFds < 1) {
++        return Void();
++    }
++
++    int fd = handle->data[0];
++    bool delta = (args.size() == 1) && (args[0] == "delta");
++
++    // Get power entity information, which is common across all supported data categories
++    Status status;
++    hidl_vec<PowerEntityInfo> stateInfos;
++    getPowerEntityInfo([&status, &stateInfos](auto rInfos, auto rStatus) {
++        status = rStatus;
++        stateInfos = rInfos;
++    });
++    if (status != Status::SUCCESS) {
++        LOG(ERROR) << "Error getting power entity info";
++        return Void();
++    }
++
++    // Construct lookup table of powerEntityId to name
++    std::unordered_map<uint32_t, std::string> entityNames;
++    for (auto info : stateInfos) {
++        entityNames.emplace(info.powerEntityId, info.powerEntityName);
++    }
++
++    // Generate debug output for supported data categories
++    debugStateResidency(entityNames, fd, delta);
++
++    // Generate debug output for energy data
++    debugEnergyData(fd, delta);
++
++    fsync(fd);
++    return Void();
++}
++
++}  // namespace implementation
++}  // namespace V1_0
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
+diff --git a/powerstats/PowerStatsAidl.cpp b/powerstats/PowerStatsAidl.cpp
+new file mode 100644
+index 00000000..68f0b14e
+--- /dev/null
++++ b/powerstats/PowerStatsAidl.cpp
+@@ -0,0 +1,440 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include "include/PowerStatsAidl.h"
++
++#include <aidl/android/hardware/power/stats/BnPowerStats.h>
++#include <android-base/chrono_utils.h>
++#include <android-base/file.h>
++#include <android-base/logging.h>
++#include <android-base/stringprintf.h>
++#include <android-base/strings.h>
++#include <inttypes.h>
++
++#include <algorithm>
++#include <chrono>
++#include <numeric>
++#include <string>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++void PowerStats::addStateResidencyDataProvider(std::unique_ptr<IStateResidencyDataProvider> p) {
++    if (!p) {
++        return;
++    }
++
++    int32_t id = mPowerEntityInfos.size();
++    auto info = p->getInfo();
++
++    size_t index = mStateResidencyDataProviders.size();
++    mStateResidencyDataProviders.emplace_back(std::move(p));
++
++    for (const auto &[entityName, states] : info) {
++        PowerEntity i = {
++                .id = id++,
++                .name = entityName,
++                .states = states,
++        };
++        if (states.empty()) {
++            mStateResidencyDataProviders.back()->registerStatesUpdateCallback(std::bind(
++                    &PowerStats::statesUpdate, this, std::placeholders::_1, std::placeholders::_2));
++        }
++        mPowerEntityInfos.emplace_back(i);
++        mStateResidencyDataProviderIndex.emplace_back(index);
++    }
++}
++
++ndk::ScopedAStatus PowerStats::getPowerEntityInfo(std::vector<PowerEntity> *_aidl_return) {
++    *_aidl_return = mPowerEntityInfos;
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus PowerStats::getStateResidency(const std::vector<int32_t> &in_powerEntityIds,
++                                                 std::vector<StateResidencyResult> *_aidl_return) {
++    if (mPowerEntityInfos.empty()) {
++        return ndk::ScopedAStatus::ok();
++    }
++
++    // If in_powerEntityIds is empty then return data for all supported entities
++    if (in_powerEntityIds.empty()) {
++        std::vector<int32_t> v(mPowerEntityInfos.size());
++        std::iota(std::begin(v), std::end(v), 0);
++        return getStateResidency(v, _aidl_return);
++    }
++
++    std::unordered_map<std::string, std::vector<StateResidency>> stateResidencies;
++
++    for (const int32_t id : in_powerEntityIds) {
++        // check for invalid ids
++        if (id < 0 || id >= mPowerEntityInfos.size()) {
++            return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_ILLEGAL_ARGUMENT));
++        }
++
++        // Check to see if we already have data for the given id
++        std::string powerEntityName = mPowerEntityInfos[id].name;
++        if (stateResidencies.find(powerEntityName) == stateResidencies.end()) {
++            mStateResidencyDataProviders.at(mStateResidencyDataProviderIndex.at(id))
++                    ->getStateResidencies(&stateResidencies);
++        }
++
++        // Append results if we have them
++        auto stateResidency = stateResidencies.find(powerEntityName);
++        if (stateResidency != stateResidencies.end()) {
++            StateResidencyResult res = {
++                    .id = id,
++                    .stateResidencyData = stateResidency->second,
++            };
++            _aidl_return->emplace_back(res);
++        } else {
++            // Failed to get results for the given id.
++            LOG(ERROR) << "Failed to get results for " << powerEntityName;
++        }
++    }
++
++    return ndk::ScopedAStatus::ok();
++}
++
++void PowerStats::addEnergyConsumer(std::unique_ptr<IEnergyConsumer> p) {
++    if (!p) {
++        return;
++    }
++
++    std::pair<EnergyConsumerType, std::string> info = p->getInfo();
++
++    int32_t count = count_if(mEnergyConsumerInfos.begin(), mEnergyConsumerInfos.end(),
++                             [&info](const EnergyConsumer &c) { return info.first == c.type; });
++    int32_t id = mEnergyConsumers.size();
++    mEnergyConsumerInfos.emplace_back(
++            EnergyConsumer{.id = id, .ordinal = count, .type = info.first, .name = info.second});
++    mEnergyConsumers.emplace_back(std::move(p));
++}
++
++ndk::ScopedAStatus PowerStats::getEnergyConsumerInfo(std::vector<EnergyConsumer> *_aidl_return) {
++    *_aidl_return = mEnergyConsumerInfos;
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus PowerStats::getEnergyConsumed(const std::vector<int32_t> &in_energyConsumerIds,
++                                                 std::vector<EnergyConsumerResult> *_aidl_return) {
++    if (mEnergyConsumers.empty()) {
++        return ndk::ScopedAStatus::ok();
++    }
++
++    // Refresh all reading once only, to prevent refresh multiple times and
++    // putting pressure on the odpm reading in the kernel and PMIC
++    std::vector<EnergyMeasurement> energyData;
++    readEnergyMeter({}, &energyData);
++
++    return getEnergyConsumed(in_energyConsumerIds, energyData, _aidl_return);
++}
++
++ndk::ScopedAStatus PowerStats::getEnergyConsumed(
++        const std::vector<int32_t> &in_energyConsumerIds,
++        const std::vector<EnergyMeasurement> &in_energyMeasurement,
++        std::vector<EnergyConsumerResult> *_aidl_return) {
++    if (mEnergyConsumers.empty()) {
++        return ndk::ScopedAStatus::ok();
++    }
++
++    // If in_powerEntityIds is empty then return data for all supported energy consumers
++    if (in_energyConsumerIds.empty()) {
++        std::vector<int32_t> v(mEnergyConsumerInfos.size());
++        std::iota(std::begin(v), std::end(v), 0);
++        return getEnergyConsumed(v, in_energyMeasurement, _aidl_return);
++    }
++
++    for (const auto id : in_energyConsumerIds) {
++        // check for invalid ids
++        if (id < 0 || id >= mEnergyConsumers.size()) {
++            return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_ILLEGAL_ARGUMENT));
++        }
++
++        auto resopt = mEnergyConsumers[id]->getEnergyConsumed(in_energyMeasurement);
++        if (resopt) {
++            EnergyConsumerResult res = resopt.value();
++            res.id = id;
++            _aidl_return->emplace_back(res);
++        } else {
++            // Failed to get results for the given id.
++            LOG(ERROR) << "Failed to get results for " << mEnergyConsumerInfos[id].name;
++        }
++    }
++
++    return ndk::ScopedAStatus::ok();
++}
++
++void PowerStats::setEnergyMeterDataProvider(std::unique_ptr<IEnergyMeterDataProvider> p) {
++    mEnergyMeterDataProvider = std::move(p);
++}
++
++ndk::ScopedAStatus PowerStats::getEnergyMeterInfo(std::vector<Channel> *_aidl_return) {
++    if (!mEnergyMeterDataProvider) {
++        return ndk::ScopedAStatus::ok();
++    }
++    return mEnergyMeterDataProvider->getEnergyMeterInfo(_aidl_return);
++}
++
++ndk::ScopedAStatus PowerStats::readEnergyMeter(const std::vector<int32_t> &in_channelIds,
++                                               std::vector<EnergyMeasurement> *_aidl_return) {
++    if (!mEnergyMeterDataProvider) {
++        return ndk::ScopedAStatus::ok();
++    }
++    return mEnergyMeterDataProvider->readEnergyMeter(in_channelIds, _aidl_return);
++}
++
++void PowerStats::statesUpdate(const std::string &entityName, const std::vector<State> &states) {
++    for (auto &powerEntityInfo : mPowerEntityInfos) {
++        if (powerEntityInfo.name == entityName) {
++            // Update only if states have not yet been set.
++            if (powerEntityInfo.states.empty()) {
++                powerEntityInfo.states = states;
++            }
++            return;
++        }
++    }
++    LOG(WARNING) << "Attempt to update a non-existent entry: " << entityName;
++}
++
++void PowerStats::getEntityStateNames(
++        std::unordered_map<int32_t, std::string> *entityNames,
++        std::unordered_map<int32_t, std::unordered_map<int32_t, std::string>> *stateNames) {
++    std::vector<PowerEntity> infos;
++    getPowerEntityInfo(&infos);
++
++    for (const auto &info : infos) {
++        entityNames->emplace(info.id, info.name);
++        stateNames->emplace(info.id, std::unordered_map<int32_t, std::string>());
++        auto &entityStateNames = stateNames->at(info.id);
++        for (const auto &state : info.states) {
++            entityStateNames.emplace(state.id, state.name);
++        }
++    }
++}
++
++void PowerStats::getChannelNames(std::unordered_map<int32_t, std::string> *channelNames) {
++    std::vector<Channel> infos;
++    getEnergyMeterInfo(&infos);
++
++    for (const auto &info : infos) {
++        channelNames->emplace(info.id, "[" + info.name + "]:" + info.subsystem);
++    }
++}
++
++void PowerStats::dumpEnergyMeter(std::ostringstream &oss, bool delta,
++                                 const std::vector<EnergyMeasurement> &energyData) {
++    const char *headerFormat = "  %32s   %18s\n";
++    const char *dataFormat = "  %32s   %14.2f mWs\n";
++    const char *headerFormatDelta = "  %32s   %18s (%14s)\n";
++    const char *dataFormatDelta = "  %32s   %14.2f mWs (%14.2f)\n";
++
++    std::unordered_map<int32_t, std::string> channelNames;
++    getChannelNames(&channelNames);
++
++    oss << "\n============= PowerStats HAL 2.0 energy meter ==============\n";
++
++    if (delta) {
++        static std::vector<EnergyMeasurement> prevEnergyData;
++        ::android::base::boot_clock::time_point curTime = ::android::base::boot_clock::now();
++        static ::android::base::boot_clock::time_point prevTime = curTime;
++
++        oss << "Elapsed time: "
++            << std::chrono::duration_cast<std::chrono::milliseconds>(curTime - prevTime).count()
++            << " ms\n";
++
++        oss << ::android::base::StringPrintf(headerFormatDelta, "Channel", "Cumulative Energy",
++                                             "Delta   ");
++
++        std::unordered_map<int32_t, int64_t> prevEnergyDataMap;
++        for (const auto &data : prevEnergyData) {
++            prevEnergyDataMap.emplace(data.id, data.energyUWs);
++        }
++
++        for (const auto &data : energyData) {
++            auto prevEnergyDataIt = prevEnergyDataMap.find(data.id);
++            int64_t deltaEnergy = 0;
++            if (prevEnergyDataIt != prevEnergyDataMap.end()) {
++                deltaEnergy = data.energyUWs - prevEnergyDataIt->second;
++            }
++
++            oss << ::android::base::StringPrintf(dataFormatDelta, channelNames.at(data.id).c_str(),
++                                                 static_cast<float>(data.energyUWs) / 1000.0,
++                                                 static_cast<float>(deltaEnergy) / 1000.0);
++        }
++
++        prevEnergyData = energyData;
++        prevTime = curTime;
++    } else {
++        oss << ::android::base::StringPrintf(headerFormat, "Channel", "Cumulative Energy");
++
++        for (const auto &data : energyData) {
++            oss << ::android::base::StringPrintf(dataFormat, channelNames.at(data.id).c_str(),
++                                                 static_cast<float>(data.energyUWs) / 1000.0);
++        }
++    }
++
++    oss << "========== End of PowerStats HAL 2.0 energy meter ==========\n";
++}
++
++void PowerStats::dumpStateResidency(std::ostringstream &oss, bool delta) {
++    const char *headerFormat = "  %16s   %18s   %16s   %15s   %17s\n";
++    const char *dataFormat =
++            "  %16s   %18s   %13" PRIu64 " ms   %15" PRIu64 "   %14" PRIu64 " ms\n";
++    const char *headerFormatDelta = "  %16s   %18s   %16s (%14s)   %15s (%16s)   %17s (%14s)\n";
++    const char *dataFormatDelta = "  %16s   %18s   %13" PRIu64 " ms (%14" PRId64 ")   %15" PRIu64
++                                  " (%16" PRId64 ")   %14" PRIu64 " ms (%14" PRId64 ")\n";
++
++    oss << "\n============= PowerStats HAL 2.0 state residencies ==============\n";
++
++    std::vector<StateResidencyResult> results;
++    getStateResidency({}, &results);
++
++    // Construct maps to entity and state names
++    std::unordered_map<int32_t, std::string> entityNames;
++    std::unordered_map<int32_t, std::unordered_map<int32_t, std::string>> stateNames;
++    getEntityStateNames(&entityNames, &stateNames);
++
++    if (delta) {
++        static std::vector<StateResidencyResult> prevResults;
++        ::android::base::boot_clock::time_point curTime = ::android::base::boot_clock::now();
++        static ::android::base::boot_clock::time_point prevTime = curTime;
++
++        oss << "Elapsed time: "
++            << std::chrono::duration_cast<std::chrono::milliseconds>(curTime - prevTime).count()
++            << " ms\n";
++
++        oss << ::android::base::StringPrintf(headerFormatDelta, "Entity", "State", "Total time",
++                                             "Delta   ", "Total entries", "Delta   ",
++                                             "Last entry tstamp", "Delta ");
++
++        // Process prevResults into a 2-tier lookup table for easy reference
++        std::unordered_map<int32_t, std::unordered_map<int32_t, StateResidency>> prevResultsMap;
++        for (const auto &prevResult : prevResults) {
++            prevResultsMap.emplace(prevResult.id, std::unordered_map<int32_t, StateResidency>());
++            for (auto stateResidency : prevResult.stateResidencyData) {
++                prevResultsMap.at(prevResult.id).emplace(stateResidency.id, stateResidency);
++            }
++        }
++
++        // Iterate over the new result data (one "result" per entity)
++        for (const auto &result : results) {
++            const char *entityName = entityNames.at(result.id).c_str();
++
++            // Look up previous result data for the same entity
++            auto prevEntityResultIt = prevResultsMap.find(result.id);
++
++            // Iterate over individual states within the current entity's new result
++            for (const auto &stateResidency : result.stateResidencyData) {
++                const char *stateName = stateNames.at(result.id).at(stateResidency.id).c_str();
++
++                // If a previous result was found for the same entity, see if that
++                // result also contains data for the current state
++                int64_t deltaTotalTime = 0;
++                int64_t deltaTotalCount = 0;
++                int64_t deltaTimestamp = 0;
++                if (prevEntityResultIt != prevResultsMap.end()) {
++                    auto prevStateResidencyIt = prevEntityResultIt->second.find(stateResidency.id);
++                    // If a previous result was found for the current entity and state, calculate
++                    // the deltas and display them along with new result
++                    if (prevStateResidencyIt != prevEntityResultIt->second.end()) {
++                        deltaTotalTime = stateResidency.totalTimeInStateMs -
++                                         prevStateResidencyIt->second.totalTimeInStateMs;
++                        deltaTotalCount = stateResidency.totalStateEntryCount -
++                                          prevStateResidencyIt->second.totalStateEntryCount;
++                        deltaTimestamp = stateResidency.lastEntryTimestampMs -
++                                         prevStateResidencyIt->second.lastEntryTimestampMs;
++                    }
++                }
++
++                oss << ::android::base::StringPrintf(
++                        dataFormatDelta, entityName, stateName, stateResidency.totalTimeInStateMs,
++                        deltaTotalTime, stateResidency.totalStateEntryCount, deltaTotalCount,
++                        stateResidency.lastEntryTimestampMs, deltaTimestamp);
++            }
++        }
++
++        prevResults = results;
++        prevTime = curTime;
++    } else {
++        oss << ::android::base::StringPrintf(headerFormat, "Entity", "State", "Total time",
++                                             "Total entries", "Last entry tstamp");
++        for (const auto &result : results) {
++            for (const auto &stateResidency : result.stateResidencyData) {
++                oss << ::android::base::StringPrintf(
++                        dataFormat, entityNames.at(result.id).c_str(),
++                        stateNames.at(result.id).at(stateResidency.id).c_str(),
++                        stateResidency.totalTimeInStateMs, stateResidency.totalStateEntryCount,
++                        stateResidency.lastEntryTimestampMs);
++            }
++        }
++    }
++
++    oss << "========== End of PowerStats HAL 2.0 state residencies ==========\n";
++}
++
++void PowerStats::dumpEnergyConsumer(std::ostringstream &oss, bool delta,
++                                    const std::vector<EnergyMeasurement> &energyData) {
++    (void)delta;
++
++    std::vector<EnergyConsumerResult> results;
++    getEnergyConsumed({}, energyData, &results);
++
++    oss << "\n============= PowerStats HAL 2.0 energy consumers ==============\n";
++
++    for (const auto &result : results) {
++        oss << ::android::base::StringPrintf("%-12s : %14.2f mWs\n",
++                                             mEnergyConsumers[result.id]->getConsumerName().c_str(),
++                                             static_cast<float>(result.energyUWs) / 1000.0);
++        for (auto &attr : result.attribution) {
++            oss << ::android::base::StringPrintf("  %10d - %14.2f mWs\n", attr.uid,
++                                                 static_cast<float>(attr.energyUWs) / 1000.0);
++        }
++    }
++
++    oss << "========== End of PowerStats HAL 2.0 energy consumers ==========\n";
++}
++
++binder_status_t PowerStats::dump(int fd, const char **args, uint32_t numArgs) {
++    std::ostringstream oss;
++    bool delta = (numArgs == 1) && (std::string(args[0]) == "delta");
++
++    // Generate debug output for state residency
++    dumpStateResidency(oss, delta);
++
++    // Refresh all reading once only, to prevent refresh multiple times and
++    // putting pressure on the odpm reading in the kernel and PMIC
++    std::vector<EnergyMeasurement> energyData;
++    readEnergyMeter({}, &energyData);
++
++    // Generate debug output for energy consumer
++    dumpEnergyConsumer(oss, delta, energyData);
++
++    // Generate debug output energy meter
++    dumpEnergyMeter(oss, delta, energyData);
++
++    ::android::base::WriteStringToFd(oss.str(), fd);
++    fsync(fd);
++    return STATUS_OK;
++}
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/PowerStatsUtils.cpp b/powerstats/PowerStatsUtils.cpp
+new file mode 100644
+index 00000000..0fd3b9a3
+--- /dev/null
++++ b/powerstats/PowerStatsUtils.cpp
+@@ -0,0 +1,44 @@
++/*
++ * Copyright (C) 2018 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <pixelpowerstats/PowerStatsUtils.h>
++
++#include <cstdlib>
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++namespace utils {
++
++bool extractStat(const char *line, const std::string &prefix, uint64_t &stat) {
++    char const *prefixStart = strstr(line, prefix.c_str());
++    if (prefixStart == nullptr) {
++        // Did not find the given prefix
++        return false;
++    }
++
++    stat = strtoull(prefixStart + prefix.length(), nullptr, 0);
++    return true;
++}
++
++}  // namespace utils
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
+diff --git a/powerstats/WlanStateResidencyDataProvider.cpp b/powerstats/WlanStateResidencyDataProvider.cpp
+new file mode 100644
+index 00000000..d7a4e50c
+--- /dev/null
++++ b/powerstats/WlanStateResidencyDataProvider.cpp
+@@ -0,0 +1,107 @@
++/*
++ * Copyright (C) 2018 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++// TODO(b/167628903): Delete this file
++#define LOG_TAG "libpixelpowerstats"
++
++#include <android-base/logging.h>
++#include <android-base/properties.h>
++
++#include <pixelpowerstats/PowerStatsUtils.h>
++#include <pixelpowerstats/WlanStateResidencyDataProvider.h>
++#include <cstdio>
++#include <cstring>
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++
++const uint32_t ACTIVE_ID = 0;
++const uint32_t DEEPSLEEP_ID = 1;
++
++WlanStateResidencyDataProvider::WlanStateResidencyDataProvider(uint32_t id, std::string path)
++    : mPath(std::move(path)), mPowerEntityId(id) {}
++
++bool WlanStateResidencyDataProvider::getResults(
++        std::unordered_map<uint32_t, PowerEntityStateResidencyResult> &results) {
++    PowerEntityStateResidencyResult result = {
++        .powerEntityId = mPowerEntityId,
++        .stateResidencyData = {{.powerEntityStateId = ACTIVE_ID},
++                               {.powerEntityStateId = DEEPSLEEP_ID}}};
++
++    std::string wlanDriverStatus = android::base::GetProperty("wlan.driver.status", "unloaded");
++    if (wlanDriverStatus != "ok") {
++        LOG(DEBUG) << __func__ << ": wlan is " << wlanDriverStatus;
++        // Return 0s for Wlan stats, because the driver is unloaded
++        results.insert(std::make_pair(mPowerEntityId, result));
++        return true;
++    }
++
++    // Using FILE* instead of std::ifstream for performance reasons (b/122253123)
++    std::unique_ptr<FILE, decltype(&fclose)> fp(fopen(mPath.c_str(), "r"), fclose);
++    if (!fp) {
++        PLOG(ERROR) << __func__ << ":Failed to open file " << mPath;
++        return false;
++    }
++    size_t numFieldsRead = 0;
++    const size_t numFields = 4;
++    size_t len = 0;
++    char *line = nullptr;
++
++    while ((numFieldsRead < numFields) && (getline(&line, &len, fp.get()) != -1)) {
++        uint64_t stat = 0;
++        if (utils::extractStat(line, "cumulative_sleep_time_ms:", stat)) {
++            result.stateResidencyData[1].totalTimeInStateMs = stat;
++            ++numFieldsRead;
++        } else if (utils::extractStat(line, "cumulative_total_on_time_ms:", stat)) {
++            result.stateResidencyData[0].totalTimeInStateMs = stat;
++            ++numFieldsRead;
++        } else if (utils::extractStat(line, "deep_sleep_enter_counter:", stat)) {
++            result.stateResidencyData[0].totalStateEntryCount = stat;
++            result.stateResidencyData[1].totalStateEntryCount = stat;
++            ++numFieldsRead;
++        } else if (utils::extractStat(line, "last_deep_sleep_enter_tstamp_ms:", stat)) {
++            result.stateResidencyData[1].lastEntryTimestampMs = stat;
++            ++numFieldsRead;
++        }
++    }
++
++    free(line);
++
++    // End of file was reached and not all state data was parsed. Something
++    // went wrong
++    if (numFieldsRead != numFields) {
++        LOG(ERROR) << __func__ << ": failed to parse stats for wlan";
++        return false;
++    }
++
++    results.insert(std::make_pair(mPowerEntityId, result));
++    return true;
++}
++
++std::vector<PowerEntityStateSpace> WlanStateResidencyDataProvider::getStateSpaces() {
++    return {
++        {.powerEntityId = mPowerEntityId,
++         .states = {{.powerEntityStateId = ACTIVE_ID, .powerEntityStateName = "Active"},
++                    {.powerEntityStateId = DEEPSLEEP_ID, .powerEntityStateName = "Deep-Sleep"}}}};
++}
++
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
+diff --git a/powerstats/aidl/Android.bp b/powerstats/aidl/Android.bp
+new file mode 100644
+index 00000000..2f03c1ba
+--- /dev/null
++++ b/powerstats/aidl/Android.bp
+@@ -0,0 +1,52 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++aidl_interface {
++    name: "pixelpowerstats_provider_aidl_interface",
++    unstable: true,
++    srcs: [
++        "android/vendor/powerstats/IPixelPowerStatsProvider.aidl",
++        "android/vendor/powerstats/IPixelPowerStatsCallback.aidl",
++        "android/vendor/powerstats/StateResidencyData.aidl",
++    ],
++
++    vendor_available: true,
++}
++
++aidl_interface {
++    name: "pixel_stateresidency_provider_aidl_interface",
++    unstable: true,
++    imports: ["android.hardware.power.stats-V2"],
++    srcs: [
++        "android/vendor/powerstats/IPixelStateResidencyProvider.aidl",
++        "android/vendor/powerstats/IPixelStateResidencyCallback.aidl",
++    ],
++    backend: {
++        java: {
++            platform_apis: true,
++        },
++        cpp: {
++            enabled: false,
++        },
++    },
++
++    vendor_available: true,
++    host_supported: true,
++}
+diff --git a/powerstats/aidl/android/vendor/powerstats/IPixelPowerStatsCallback.aidl b/powerstats/aidl/android/vendor/powerstats/IPixelPowerStatsCallback.aidl
+new file mode 100644
+index 00000000..31a196ae
+--- /dev/null
++++ b/powerstats/aidl/android/vendor/powerstats/IPixelPowerStatsCallback.aidl
+@@ -0,0 +1,23 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package android.vendor.powerstats;
++import android.vendor.powerstats.StateResidencyData;
++
++interface IPixelPowerStatsCallback
++{
++     void getStats(out StateResidencyData[] stats);
++}
+diff --git a/powerstats/aidl/android/vendor/powerstats/IPixelPowerStatsProvider.aidl b/powerstats/aidl/android/vendor/powerstats/IPixelPowerStatsProvider.aidl
+new file mode 100644
+index 00000000..d03edde5
+--- /dev/null
++++ b/powerstats/aidl/android/vendor/powerstats/IPixelPowerStatsProvider.aidl
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package android.vendor.powerstats;
++import android.vendor.powerstats.IPixelPowerStatsCallback;
++
++interface IPixelPowerStatsProvider
++{
++    void registerCallback(in @utf8InCpp String entityName, in IPixelPowerStatsCallback callback);
++    void unregisterCallback(in IPixelPowerStatsCallback callback);
++}
+diff --git a/powerstats/aidl/android/vendor/powerstats/IPixelStateResidencyCallback.aidl b/powerstats/aidl/android/vendor/powerstats/IPixelStateResidencyCallback.aidl
+new file mode 100644
+index 00000000..f4ae9e85
+--- /dev/null
++++ b/powerstats/aidl/android/vendor/powerstats/IPixelStateResidencyCallback.aidl
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (C) 2021 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package android.vendor.powerstats;
++
++import android.hardware.power.stats.StateResidency;
++
++interface IPixelStateResidencyCallback
++{
++     StateResidency[] getStateResidency();
++}
+diff --git a/powerstats/aidl/android/vendor/powerstats/IPixelStateResidencyProvider.aidl b/powerstats/aidl/android/vendor/powerstats/IPixelStateResidencyProvider.aidl
+new file mode 100644
+index 00000000..4d73faf4
+--- /dev/null
++++ b/powerstats/aidl/android/vendor/powerstats/IPixelStateResidencyProvider.aidl
+@@ -0,0 +1,30 @@
++/*
++ * Copyright (C) 2021 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package android.vendor.powerstats;
++
++import android.hardware.power.stats.State;
++import android.vendor.powerstats.IPixelStateResidencyCallback;
++
++interface IPixelStateResidencyProvider
++{
++    void registerCallback(in @utf8InCpp String entityName, in IPixelStateResidencyCallback cb);
++    void registerCallbackByStates(
++            in @utf8InCpp String entityName,
++            in IPixelStateResidencyCallback cb,
++            in State[] states);
++    void unregisterCallback(in IPixelStateResidencyCallback cb);
++}
+diff --git a/powerstats/aidl/android/vendor/powerstats/StateResidencyData.aidl b/powerstats/aidl/android/vendor/powerstats/StateResidencyData.aidl
+new file mode 100644
+index 00000000..b4c93deb
+--- /dev/null
++++ b/powerstats/aidl/android/vendor/powerstats/StateResidencyData.aidl
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package android.vendor.powerstats;
++
++parcelable StateResidencyData {
++  @utf8InCpp String state;
++  long totalTimeInStateMs;
++  long totalStateEntryCount;
++  long lastEntryTimestampMs;
++}
+diff --git a/powerstats/android.hardware.power.stats-service.pixel.rc b/powerstats/android.hardware.power.stats-service.pixel.rc
+new file mode 100644
+index 00000000..01ec05ca
+--- /dev/null
++++ b/powerstats/android.hardware.power.stats-service.pixel.rc
+@@ -0,0 +1,18 @@
++# ODPM: change VSYS_PWR_MMWAVE to S9M_LLDO3 on sub6 device
++# detail: b/231463665#10
++on early-boot && property:ro.boot.hardware.sku=GP4BC
++    write /sys/bus/iio/devices/iio:device0/enabled_rails "CH0=BUCK9M"
++
++on early-boot && property:ro.boot.hardware.sku=GFE4J
++    write /sys/bus/iio/devices/iio:device0/enabled_rails "CH0=BUCK9M"
++
++on early-boot && property:ro.boot.hardware.sku=GVU6C
++    write /sys/bus/iio/devices/iio:device0/enabled_rails "CH0=BUCK9M"
++
++on early-boot && property:ro.boot.hardware.sku=G03Z5
++    write /sys/bus/iio/devices/iio:device0/enabled_rails "CH0=BUCK9M"
++
++service vendor.power.stats /vendor/bin/hw/android.hardware.power.stats-service.pixel
++    class hal
++    user system
++    group system
+diff --git a/powerstats/android.hardware.power.stats-service.pixel.xml b/powerstats/android.hardware.power.stats-service.pixel.xml
+new file mode 100644
+index 00000000..b64ea7e2
+--- /dev/null
++++ b/powerstats/android.hardware.power.stats-service.pixel.xml
+@@ -0,0 +1,7 @@
++<manifest version="1.0" type="device">
++    <hal format="aidl">
++        <name>android.hardware.power.stats</name>
++        <version>2</version>
++        <fqname>IPowerStats/default</fqname>
++    </hal>
++</manifest>
+diff --git a/powerstats/dataproviders/DisplayStateResidencyDataProvider.cpp b/powerstats/dataproviders/DisplayStateResidencyDataProvider.cpp
+new file mode 100644
+index 00000000..fa53d825
+--- /dev/null
++++ b/powerstats/dataproviders/DisplayStateResidencyDataProvider.cpp
+@@ -0,0 +1,166 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <dataproviders/DisplayStateResidencyDataProvider.h>
++
++#include <android-base/chrono_utils.h>
++#include <android-base/logging.h>
++#include <android-base/properties.h>
++
++#include <chrono>
++#include <cstdio>
++#include <cstring>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++static const int32_t POLL_TIMEOUT_MILLIS = 300;
++
++DisplayStateResidencyDataProvider::DisplayStateResidencyDataProvider(
++        std::string name, std::string path, std::vector<std::string> states)
++    : mPath(std::move(path)),
++      mName(std::move(name)),
++      mStates(states),
++      mCurState(-1),
++      mLooper(new ::android::Looper(true)) {
++    // Construct mResidencies
++    mResidencies.reserve(mStates.size());
++    for (int32_t i = 0; i < mStates.size(); ++i) {
++        StateResidency p = {.id = i};
++        mResidencies.emplace_back(p);
++    }
++
++    // Open display state file descriptor
++    LOG(VERBOSE) << "Opening " << mPath;
++    mFd = open(mPath.c_str(), O_RDONLY | O_NONBLOCK);
++    if (mFd < 0) {
++        PLOG(ERROR) << ":Failed to open file " << mPath;
++        return;
++    }
++
++    // Add display state file descriptor to be polled by the looper
++    mLooper->addFd(mFd, 0, ::android::Looper::EVENT_ERROR, nullptr, nullptr);
++
++    // Run the thread that will poll for changes to display state
++    LOG(VERBOSE) << "Starting DisplayStateWatcherThread";
++    mThread = std::thread(&DisplayStateResidencyDataProvider::pollLoop, this);
++}
++
++DisplayStateResidencyDataProvider::~DisplayStateResidencyDataProvider() {
++    if (mFd >= 0) {
++        close(mFd);
++    }
++}
++
++bool DisplayStateResidencyDataProvider::getStateResidencies(
++        std::unordered_map<std::string, std::vector<StateResidency>> *residencies) {
++    std::scoped_lock lk(mLock);
++
++    // Get current time since boot in milliseconds
++    uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
++                           ::android::base::boot_clock::now().time_since_epoch())
++                           .count();
++
++    // Construct residency result based on current residency data
++    auto result = mResidencies;
++
++    if (mCurState > -1) {
++        result[mCurState].totalTimeInStateMs += now - result[mCurState].lastEntryTimestampMs;
++    }
++
++    residencies->emplace(mName, result);
++    return true;
++}
++
++std::unordered_map<std::string, std::vector<State>> DisplayStateResidencyDataProvider::getInfo() {
++    std::vector<State> stateInfos;
++    stateInfos.reserve(mStates.size());
++    for (int32_t i = 0; i < mStates.size(); ++i) {
++        stateInfos.push_back({.id = i, .name = mStates[i]});
++    }
++
++    return {{mName, stateInfos}};
++}
++
++// Called when there is new data to be read from
++// display state file descriptor indicating a state change
++void DisplayStateResidencyDataProvider::updateStats() {
++    char data[32];
++    char *trim;
++
++    // Get current time since boot in milliseconds
++    uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
++                           ::android::base::boot_clock::now().time_since_epoch())
++                           .count();
++    // Read display state
++    ssize_t ret = pread(mFd, data, sizeof(data) - 1, 0);
++    if (ret < 0) {
++        PLOG(ERROR) << "Failed to read display state";
++        return;
++    }
++
++    trim = strchr(data, '\n');
++    if (trim) {
++        data[trim - data] = '\0';
++    }
++
++    // Update residency stats based on state read
++    {  // acquire lock
++        std::scoped_lock lk(mLock);
++        for (uint32_t i = 0; i < mStates.size(); ++i) {
++            if (strcmp(data, mStates[i].c_str()) == 0) {
++                if (i == mCurState) {
++                    break;
++                }
++
++                LOG(VERBOSE) << "display state: " << data;
++
++                // Update total time of the previous state
++                if (mCurState > -1) {
++                    mResidencies[mCurState].totalTimeInStateMs +=
++                            now - mResidencies[mCurState].lastEntryTimestampMs;
++                }
++
++                // Set current state
++                mCurState = i;
++                mResidencies[i].totalStateEntryCount++;
++                mResidencies[i].lastEntryTimestampMs = now;
++                break;
++            }
++        }
++    }  // release lock
++}
++
++void DisplayStateResidencyDataProvider::pollLoop() {
++    int32_t res;
++    LOG(VERBOSE) << "DisplayStateResidencyDataProvider polling...";
++    while (true) {
++        // Poll for display state changes.
++        res = mLooper->pollOnce(POLL_TIMEOUT_MILLIS);
++        if (res >= 0 || res == ::android::Looper::POLL_TIMEOUT) {
++            updateStats();
++        }
++    }
++}
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/dataproviders/GenericStateResidencyDataProvider.cpp b/powerstats/dataproviders/GenericStateResidencyDataProvider.cpp
+new file mode 100644
+index 00000000..627e0297
+--- /dev/null
++++ b/powerstats/dataproviders/GenericStateResidencyDataProvider.cpp
+@@ -0,0 +1,208 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <android-base/logging.h>
++#include <android-base/strings.h>
++
++#include <dataproviders/GenericStateResidencyDataProvider.h>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++std::vector<GenericStateResidencyDataProvider::StateResidencyConfig>
++generateGenericStateResidencyConfigs(
++        const GenericStateResidencyDataProvider::StateResidencyConfig &stateConfig,
++        const std::vector<std::pair<std::string, std::string>> &stateHeaders) {
++    std::vector<GenericStateResidencyDataProvider::StateResidencyConfig> stateResidencyConfigs;
++    stateResidencyConfigs.reserve(stateHeaders.size());
++    for (auto h : stateHeaders) {
++        GenericStateResidencyDataProvider::StateResidencyConfig cfg = {stateConfig};
++        cfg.name = h.first;
++        cfg.header = h.second;
++        stateResidencyConfigs.emplace_back(cfg);
++    }
++    return stateResidencyConfigs;
++}
++
++static bool extractStat(const char *line, const std::string &prefix, uint64_t *stat) {
++    char const *prefixStart = strstr(line, prefix.c_str());
++    if (prefixStart == nullptr) {
++        // Did not find the given prefix
++        return false;
++    }
++
++    *stat = strtoull(prefixStart + prefix.length(), nullptr, 0);
++    return true;
++}
++
++static bool parseState(StateResidency *data,
++                       const GenericStateResidencyDataProvider::StateResidencyConfig &config,
++                       FILE *fp, char **line, size_t *len) {
++    size_t numFieldsRead = 0;
++    const size_t numFields =
++            config.entryCountSupported + config.totalTimeSupported + config.lastEntrySupported;
++
++    while ((numFieldsRead < numFields) && (getline(line, len, fp) != -1)) {
++        uint64_t stat = 0;
++        // Attempt to extract data from the current line
++        if (config.entryCountSupported && extractStat(*line, config.entryCountPrefix, &stat)) {
++            data->totalStateEntryCount =
++                    config.entryCountTransform ? config.entryCountTransform(stat) : stat;
++            ++numFieldsRead;
++        } else if (config.totalTimeSupported && extractStat(*line, config.totalTimePrefix, &stat)) {
++            data->totalTimeInStateMs =
++                    config.totalTimeTransform ? config.totalTimeTransform(stat) : stat;
++            ++numFieldsRead;
++        } else if (config.lastEntrySupported && extractStat(*line, config.lastEntryPrefix, &stat)) {
++            data->lastEntryTimestampMs =
++                    config.lastEntryTransform ? config.lastEntryTransform(stat) : stat;
++            ++numFieldsRead;
++        }
++    }
++
++    // End of file was reached and not all state data was parsed. Something
++    // went wrong
++    if (numFieldsRead != numFields) {
++        LOG(ERROR) << "Failed to parse stats for " << config.name;
++        return false;
++    }
++
++    return true;
++}
++
++template <class T, class Func>
++static int32_t findNextIndex(const std::vector<T> &collection, FILE *fp, char **line, size_t *len,
++                             Func pred) {
++    // handling the case when there is no header to look for
++    if (pred(collection[0], "")) {
++        return 0;
++    }
++
++    while (getline(line, len, fp) != -1) {
++        for (int32_t i = 0; i < collection.size(); ++i) {
++            if (pred(collection[i], *line)) {
++                return i;
++            }
++        }
++    }
++
++    return -1;
++}
++
++static bool getStateData(std::vector<StateResidency> *result,
++                         const std::vector<GenericStateResidencyDataProvider::StateResidencyConfig>
++                                 &stateResidencyConfigs,
++                         FILE *fp, char **line, size_t *len) {
++    size_t numStatesRead = 0;
++    size_t numStates = stateResidencyConfigs.size();
++    int32_t nextState = -1;
++    auto pred = [](auto a, char const *b) {
++        // return true if b matches the header contained in a, ignoring whitespace
++        return (a.header == ::android::base::Trim(b));
++    };
++
++    result->reserve(numStates);
++
++    // Search for state headers until we have found them all or can't find anymore
++    while ((numStatesRead < numStates) &&
++           (nextState = findNextIndex<GenericStateResidencyDataProvider::StateResidencyConfig>(
++                    stateResidencyConfigs, fp, line, len, pred)) >= 0) {
++        // Found a matching state header. Parse the contents
++        StateResidency data = {.id = nextState};
++        if (parseState(&data, stateResidencyConfigs[nextState], fp, line, len)) {
++            result->emplace_back(data);
++            ++numStatesRead;
++        } else {
++            break;
++        }
++    }
++
++    // There was a problem parsing and we failed to get data for all of the states
++    if (numStatesRead != numStates) {
++        return false;
++    }
++
++    return true;
++}
++
++bool GenericStateResidencyDataProvider::getStateResidencies(
++        std::unordered_map<std::string, std::vector<StateResidency>> *residencies) {
++    // Using FILE* instead of std::ifstream for performance reasons
++    std::unique_ptr<FILE, decltype(&fclose)> fp(fopen(mPath.c_str(), "r"), fclose);
++    if (!fp) {
++        PLOG(ERROR) << "Failed to open file " << mPath;
++        return false;
++    }
++
++    size_t len = 0;
++    char *line = nullptr;
++    size_t numEntitiesRead = 0;
++    size_t numEntities = mPowerEntityConfigs.size();
++    int32_t nextConfig = -1;
++    auto pred = [](auto a, char const *b) {
++        // return true if b matches the header contained in a, ignoring whitespace
++        return (a.mHeader == ::android::base::Trim(b));
++    };
++
++    // Search for entity headers until we have found them all or can't find anymore
++    while ((numEntitiesRead < numEntities) &&
++           (nextConfig = findNextIndex<decltype(mPowerEntityConfigs)::value_type>(
++                    mPowerEntityConfigs, fp.get(), &line, &len, pred)) >= 0) {
++        // Found a matching header. Retrieve its state data
++        std::vector<StateResidency> result;
++        if (getStateData(&result, mPowerEntityConfigs[nextConfig].mStateResidencyConfigs, fp.get(),
++                         &line, &len)) {
++            residencies->emplace(mPowerEntityConfigs[nextConfig].mName, result);
++            ++numEntitiesRead;
++        } else {
++            break;
++        }
++    }
++
++    free(line);
++
++    // There was a problem gathering state residency data for one or more entities
++    if (numEntitiesRead != numEntities) {
++        LOG(ERROR) << "Failed to get results for " << mPath;
++        return false;
++    }
++
++    return true;
++}
++
++std::unordered_map<std::string, std::vector<State>> GenericStateResidencyDataProvider::getInfo() {
++    std::unordered_map<std::string, std::vector<State>> ret;
++    for (const auto &entityConfig : mPowerEntityConfigs) {
++        int32_t stateId = 0;
++        std::vector<State> stateInfos;
++        for (const auto &stateConfig : entityConfig.mStateResidencyConfigs) {
++            State stateInfo = {.id = stateId++, .name = stateConfig.name};
++            stateInfos.emplace_back(stateInfo);
++        }
++
++        ret.emplace(entityConfig.mName, stateInfos);
++    }
++    return ret;
++}
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/dataproviders/IioEnergyMeterDataProvider.cpp b/powerstats/dataproviders/IioEnergyMeterDataProvider.cpp
+new file mode 100644
+index 00000000..d999f248
+--- /dev/null
++++ b/powerstats/dataproviders/IioEnergyMeterDataProvider.cpp
+@@ -0,0 +1,234 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#define ATRACE_TAG (ATRACE_TAG_POWER | ATRACE_TAG_HAL)
++
++#include <android-base/file.h>
++#include <android-base/logging.h>
++#include <android-base/stringprintf.h>
++#include <android-base/strings.h>
++#include <dataproviders/IioEnergyMeterDataProvider.h>
++#include <dataproviders/IioEnergyMeterDataSelector.h>
++#include <inttypes.h>
++#include <utils/Trace.h>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++using aidl::android::hardware::power::stats::IioEnergyMeterDataSelector;
++
++#define MAX_RAIL_NAME_LEN 50
++#define STR(s) #s
++#define XSTR(s) STR(s)
++
++void IioEnergyMeterDataProvider::findIioEnergyMeterNodes() {
++    struct dirent *ent;
++
++    DIR *iioDir = opendir(kIioRootDir.c_str());
++    if (!iioDir) {
++        PLOG(ERROR) << "Error opening directory" << kIioRootDir;
++        return;
++    }
++
++    // Find any iio:devices that match the given kDeviceNames
++    while (ent = readdir(iioDir), ent) {
++        std::string devTypeDir = ent->d_name;
++        if (devTypeDir.find(kDeviceType) != std::string::npos) {
++            std::string devicePath = kIioRootDir + devTypeDir;
++            std::string deviceNameContents;
++
++            if (!::android::base::ReadFileToString(devicePath + kNameNode, &deviceNameContents)) {
++                LOG(WARNING) << "Failed to read device name from " << devicePath;
++            } else {
++                for (const auto &deviceName : kDeviceNames) {
++                    if (deviceNameContents.find(deviceName) != std::string::npos) {
++                        mDevicePaths.emplace(devicePath, deviceName);
++                    }
++                }
++            }
++        }
++    }
++
++    closedir(iioDir);
++    return;
++}
++
++void IioEnergyMeterDataProvider::parseEnabledRails() {
++    std::string data;
++    int32_t id = 0;
++    for (const auto &path : mDevicePaths) {
++        // Get list of enabled rails
++        if (!::android::base::ReadFileToString(path.first + kEnabledRailsNode, &data)) {
++            LOG(ERROR) << "Error reading enabled rails from " << path.first;
++            continue;
++        }
++
++        // Build RailInfos from list of enabled rails
++        std::istringstream railNames(data);
++        std::string line;
++        while (std::getline(railNames, line)) {
++            /* Format example: CH2[VSYS_PWR_RFFE]:Cellular */
++            std::vector<std::string> words = ::android::base::Split(line, ":][");
++            if (words.size() == 4) {
++                const std::string channelName = words[1];
++                const std::string subsystemName = words[3];
++                if (mChannelIds.count(channelName) == 0) {
++                    mChannelInfos.push_back(
++                            {.id = id, .name = channelName, .subsystem = subsystemName});
++                    mChannelIds.emplace(channelName, id);
++                    id++;
++                } else {
++                    LOG(WARNING) << "There exists rails with the same name (not supported): "
++                                 << channelName << ". Only the last occurrence of rail energy will "
++                                 << "be provided.";
++                }
++            } else {
++                LOG(WARNING) << "Unexpected enabled rail format in " << path.first;
++            }
++        }
++    }
++}
++
++IioEnergyMeterDataProvider::IioEnergyMeterDataProvider(const std::vector<std::string> &deviceNames,
++                                                       const bool useSelector)
++    : kDeviceNames(std::move(deviceNames)) {
++    findIioEnergyMeterNodes();
++    if (useSelector) {
++        /* Run meter selection in constructor; object can be discarded afterwards */
++        IioEnergyMeterDataSelector selector(mDevicePaths);
++    }
++    parseEnabledRails();
++    mReading.resize(mChannelInfos.size());
++}
++
++int IioEnergyMeterDataProvider::parseEnergyContents(const std::string &contents) {
++    std::istringstream energyData(contents);
++    std::string line;
++
++    int ret = 0;
++    uint64_t timestamp = 0;
++    bool timestampRead = false;
++
++    while (std::getline(energyData, line)) {
++        bool parseLineSuccess = false;
++
++        if (timestampRead == false) {
++            /* Read timestamp from boot (ms) */
++            if (sscanf(line.c_str(), "t=%" PRIu64, &timestamp) == 1) {
++                if (timestamp == 0 || timestamp == ULLONG_MAX) {
++                    LOG(ERROR) << "Potentially wrong timestamp: " << timestamp;
++                }
++                timestampRead = true;
++                parseLineSuccess = true;
++            }
++
++        } else {
++            /* Read rail energy */
++            uint64_t energy = 0;
++            uint64_t duration = 0;
++            char railNameRaw[MAX_RAIL_NAME_LEN + 1];
++
++            /* Format example: CH3(T=358356)[S2M_VDD_CPUCL2], 761330 */
++            if (sscanf(line.c_str(),
++                       "CH%*d(T=%" PRIu64 ")[%" XSTR(MAX_RAIL_NAME_LEN) "[^]]], %" PRIu64,
++                       &duration, railNameRaw, &energy) == 3) {
++                std::string railName(railNameRaw);
++
++                /* If the count == 0, the rail may not be enabled */
++                /* The count cannot be > 1; mChannelIds is a map */
++                if (mChannelIds.count(railName) == 1) {
++                    size_t index = mChannelIds[railName];
++                    mReading[index].id = index;
++                    mReading[index].timestampMs = timestamp;
++                    mReading[index].durationMs = duration;
++                    mReading[index].energyUWs = energy;
++                    if (mReading[index].energyUWs == ULLONG_MAX) {
++                        LOG(ERROR) << "Potentially wrong energy value on rail: " << railName;
++                    }
++                    ATRACE_INT(railNameRaw, energy);
++                }
++                parseLineSuccess = true;
++            }
++        }
++
++        if (parseLineSuccess == false) {
++            ret = -1;
++            break;
++        }
++    }
++
++    return ret;
++}
++
++int IioEnergyMeterDataProvider::parseEnergyValue(std::string path) {
++    int ret = 0;
++    std::string data;
++    if (!::android::base::ReadFileToString(path + kEnergyValueNode, &data)) {
++        LOG(ERROR) << "Error reading energy value in " << path;
++        return -1;
++    }
++
++    ret = parseEnergyContents(data);
++    if (ret != 0) {
++        LOG(ERROR) << "Unexpected format in " << path;
++    }
++    return ret;
++}
++
++ndk::ScopedAStatus IioEnergyMeterDataProvider::readEnergyMeter(
++        const std::vector<int32_t> &in_channelIds, std::vector<EnergyMeasurement> *_aidl_return) {
++    std::scoped_lock lock(mLock);
++
++    for (const auto &devicePath : mDevicePaths) {
++        if (parseEnergyValue(devicePath.first) < 0) {
++            LOG(ERROR) << "Error in parsing " << devicePath.first;
++            return ndk::ScopedAStatus::ok();
++        }
++    }
++
++    if (in_channelIds.empty()) {
++        *_aidl_return = mReading;
++    } else {
++        _aidl_return->reserve(in_channelIds.size());
++        for (const auto &id : in_channelIds) {
++            // check for invalid ids
++            if (id < 0 || id >= mChannelInfos.size()) {
++                return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_ILLEGAL_ARGUMENT));
++            }
++
++            _aidl_return->emplace_back(mReading[id]);
++        }
++    }
++
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus IioEnergyMeterDataProvider::getEnergyMeterInfo(
++        std::vector<Channel> *_aidl_return) {
++    std::scoped_lock lk(mLock);
++    *_aidl_return = mChannelInfos;
++
++    return ndk::ScopedAStatus::ok();
++}
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/dataproviders/IioEnergyMeterDataSelector.cpp b/powerstats/dataproviders/IioEnergyMeterDataSelector.cpp
+new file mode 100644
+index 00000000..b09081bc
+--- /dev/null
++++ b/powerstats/dataproviders/IioEnergyMeterDataSelector.cpp
+@@ -0,0 +1,136 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <dataproviders/IioEnergyMeterDataSelector.h>
++
++#include <android-base/file.h>
++#include <android-base/logging.h>
++#include <android-base/stringprintf.h>
++#include <android-base/strings.h>
++#include <inttypes.h>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++void IioEnergyMeterDataSelector::parseConfigData(
++        const std::string data,
++        std::unordered_map<std::string, std::list<std::string>> *deviceConfigs) {
++    std::string deviceName; /* Initialized empty */
++    std::list<std::string> deviceConfig;
++
++    /* Parse the configuration from the config file */
++    std::istringstream input(data);
++    std::string line;
++    while (std::getline(input, line)) {
++        /* Skip whitespace/tab lines */
++        if (line.find_first_not_of("\t ") == std::string::npos) {
++            continue;
++        }
++
++        /* Look for "[Device Name]" in the line */
++        std::vector<std::string> words = ::android::base::Split(line, "][");
++        if (words.size() == 3) {
++            if (deviceName.empty() == false) {
++                /* End of device config - store config in map */
++                deviceConfigs->emplace(deviceName, deviceConfig);
++                deviceConfig.clear();
++            }
++
++            deviceName = words[1];
++        } else {
++            if (deviceName.empty() == false) {
++                /* We current have a device name set, store the line */
++                deviceConfig.emplace_back(line);
++            } /* Else skip line - no device name is yet associated with config line */
++        }
++    }
++
++    /* End of file - store config in map */
++    if (deviceName.empty() == false) {
++        deviceConfigs->emplace(deviceName, deviceConfig);
++    }
++}
++
++void IioEnergyMeterDataSelector::applyConfigToDevices(
++        const std::unordered_map<std::string, std::list<std::string>> &deviceConfigs) {
++    for (const auto &devicePathPair : kDevicePaths) {
++        std::string devicePath = devicePathPair.first;
++        std::string deviceName = devicePathPair.second;
++
++        /* Check if a config exists for this device */
++        if (deviceConfigs.count(deviceName) == 1) {
++            LOG(INFO) << "Attempting to configure: " << deviceName;
++            std::string nodePath = devicePath + kSelectionNode;
++            std::list<std::string> config = deviceConfigs.at(deviceName);
++            for (const auto &railConfig : config) {
++                bool success = ::android::base::WriteStringToFile(railConfig, nodePath);
++                if (!success) {
++                    LOG(ERROR) << "Failed to write: " << railConfig << " to: " << nodePath;
++                } else {
++                    LOG(INFO) << "Wrote rail config: " << railConfig;
++                }
++            }
++        }
++    }
++}
++
++void IioEnergyMeterDataSelector::applyConfigsByAscendingPriority() {
++    std::string data;
++
++    /* Parsed in order of initialization. Thus, the last item will have highest priority */
++    for (const auto &configPath : kConfigPaths) {
++        if (!::android::base::ReadFileToString(configPath, &data)) {
++            LOG(DEBUG) << "Could not parse rail config from " << configPath;
++            continue;
++        }
++
++        /* key: device name, value: list of config lines */
++        std::unordered_map<std::string, std::list<std::string>> deviceConfigs;
++        parseConfigData(data, &deviceConfigs);
++        applyConfigToDevices(deviceConfigs);
++    }
++}
++
++/**
++ * Sends configuration complete to the driver
++ */
++void IioEnergyMeterDataSelector::sendConfigurationComplete() {
++    for (const auto &devicePathPair : kDevicePaths) {
++        /* Sends configuration complete to the driver */
++        std::string devicePath = devicePathPair.first;
++        std::string nodePath = devicePath + kSelectionNode;
++        bool success = ::android::base::WriteStringToFile(kSelectionComplete, nodePath);
++        if (!success) {
++            LOG(ERROR) << "Failed to write: " << kSelectionComplete << " to: " << nodePath;
++        }
++    }
++}
++
++IioEnergyMeterDataSelector::IioEnergyMeterDataSelector(
++        const std::unordered_map<std::string, std::string> &devicePaths)
++    : kDevicePaths(std::move(devicePaths)) {
++    applyConfigsByAscendingPriority();
++    sendConfigurationComplete();
++}
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/dataproviders/PixelStateResidencyDataProvider.cpp b/powerstats/dataproviders/PixelStateResidencyDataProvider.cpp
+new file mode 100644
+index 00000000..405d1831
+--- /dev/null
++++ b/powerstats/dataproviders/PixelStateResidencyDataProvider.cpp
+@@ -0,0 +1,180 @@
++/*
++ * Copyright (C) 2021 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <dataproviders/PixelStateResidencyDataProvider.h>
++
++#include <android-base/logging.h>
++#include <android-base/stringprintf.h>
++#include <android/binder_status.h>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++PixelStateResidencyDataProvider::PixelStateResidencyDataProvider()
++    : mProviderService(ndk::SharedRefBase::make<ProviderService>(this)) {}
++
++void PixelStateResidencyDataProvider::addEntity(std::string name, std::vector<State> states) {
++    std::lock_guard<std::mutex> lock(mLock);
++
++    mEntries.emplace_back(name, states);
++}
++
++void PixelStateResidencyDataProvider::start() {
++    binder_status_t status =
++            AServiceManager_addService(mProviderService->asBinder().get(), kInstance.c_str());
++    if (status != STATUS_OK) {
++        LOG(ERROR) << "Failed to start " << kInstance;
++    }
++}
++
++::ndk::ScopedAStatus PixelStateResidencyDataProvider::getStateResidenciesTimed(
++        const Entry &entry, std::vector<StateResidency> *residency) {
++    const uint64_t MAX_LATENCY_US = 2000;
++
++    if (!entry.mCallback) {
++        LOG(ERROR) << "callback for " << entry.mName << " is not registered";
++        return ndk::ScopedAStatus::fromStatus(STATUS_UNEXPECTED_NULL);
++    }
++
++    struct timespec then;
++    struct timespec now;
++
++    clock_gettime(CLOCK_BOOTTIME, &then);
++    ::ndk::ScopedAStatus status = entry.mCallback->getStateResidency(residency);
++    clock_gettime(CLOCK_BOOTTIME, &now);
++
++    uint64_t timeElapsedUs =
++            ((now.tv_sec - then.tv_sec) * 1000000) + ((now.tv_nsec - then.tv_nsec) / 1000);
++    if (timeElapsedUs > MAX_LATENCY_US) {
++        LOG(WARNING) << "getStateResidency latency for " << entry.mName
++                     << " exceeded time allowed: " << timeElapsedUs << "us";
++    }
++
++    return status;
++}
++
++bool PixelStateResidencyDataProvider::getStateResidencies(
++        std::unordered_map<std::string, std::vector<StateResidency>> *residencies) {
++    std::lock_guard<std::mutex> lock(mLock);
++
++    size_t numResultsFound = 0;
++    size_t numResults = mEntries.size();
++    for (auto &entry : mEntries) {
++        std::vector<StateResidency> residency;
++        ::ndk::ScopedAStatus status = getStateResidenciesTimed(entry, &residency);
++
++        if (!status.isOk()) {
++            LOG(ERROR) << "getStateResidency for " << entry.mName << " failed";
++
++            if (status.getStatus() == STATUS_DEAD_OBJECT) {
++                LOG(ERROR) << "Unregistering dead callback for " << entry.mName;
++                entry.mCallback = nullptr;
++            }
++        }
++        if (!residency.empty()) {
++            residencies->emplace(entry.mName, residency);
++            numResultsFound++;
++        }
++    }
++
++    return (numResultsFound == numResults);
++}
++
++std::unordered_map<std::string, std::vector<State>> PixelStateResidencyDataProvider::getInfo() {
++    std::lock_guard<std::mutex> lock(mLock);
++
++    std::unordered_map<std::string, std::vector<State>> ret;
++    for (const auto &entry : mEntries) {
++        ret.emplace(entry.mName, entry.mStates);
++    }
++
++    return ret;
++}
++
++void PixelStateResidencyDataProvider::registerStatesUpdateCallback(
++        std::function<void(const std::string &, const std::vector<State> &in_states)>
++                statesUpdateCallback) {
++    mStatesUpdateCallback = statesUpdateCallback;
++}
++
++::ndk::ScopedAStatus PixelStateResidencyDataProvider::registerCallbackByStates(
++        const std::string &in_entityName,
++        const std::shared_ptr<IPixelStateResidencyCallback> &in_cb,
++        const std::vector<State> &in_states) {
++    std::lock_guard<std::mutex> lock(mLock);
++
++    if (!in_cb) {
++        return ndk::ScopedAStatus::fromStatus(STATUS_UNEXPECTED_NULL);
++    }
++
++    auto toRegister =
++            std::find_if(mEntries.begin(), mEntries.end(),
++                         [&in_entityName](const auto &it) { return it.mName == in_entityName; });
++
++    if (toRegister == mEntries.end()) {
++        LOG(ERROR) << __func__ << " Invalid entityName: " << in_entityName;
++        return ::ndk::ScopedAStatus::fromStatus(STATUS_BAD_VALUE);
++    }
++
++    toRegister->mCallback = in_cb;
++
++    if (!in_states.empty()) {
++        toRegister->mStates = in_states;
++        mStatesUpdateCallback(in_entityName, in_states);
++    }
++
++    LOG(INFO) << __func__ << ": Registered " << in_entityName;
++    return ::ndk::ScopedAStatus::ok();
++}
++
++::ndk::ScopedAStatus PixelStateResidencyDataProvider::registerCallback(
++        const std::string &in_entityName,
++        const std::shared_ptr<IPixelStateResidencyCallback> &in_cb) {
++    return registerCallbackByStates(in_entityName, in_cb, {});
++}
++
++::ndk::ScopedAStatus PixelStateResidencyDataProvider::unregisterCallback(
++        const std::shared_ptr<IPixelStateResidencyCallback> &in_cb) {
++    std::lock_guard<std::mutex> lock(mLock);
++
++    if (!in_cb) {
++        return ndk::ScopedAStatus::fromStatus(STATUS_UNEXPECTED_NULL);
++    }
++
++    auto toRemove = std::find_if(mEntries.begin(), mEntries.end(), [&in_cb](const auto &it) {
++        if (!it.mCallback) {
++            return false;
++        }
++        return it.mCallback->asBinder().get() == in_cb->asBinder().get();
++    });
++
++    if (toRemove == mEntries.end()) {
++        return ndk::ScopedAStatus::fromStatus(STATUS_BAD_VALUE);
++    }
++
++    toRemove->mCallback = nullptr;
++
++    return ::ndk::ScopedAStatus::ok();
++}
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/dataproviders/PowerStatsEnergyAttribution.cpp b/powerstats/dataproviders/PowerStatsEnergyAttribution.cpp
+new file mode 100644
+index 00000000..ca72a93a
+--- /dev/null
++++ b/powerstats/dataproviders/PowerStatsEnergyAttribution.cpp
+@@ -0,0 +1,95 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <dataproviders/PowerStatsEnergyAttribution.h>
++
++#include <android-base/logging.h>
++#include <android-base/parseint.h>
++#include <android-base/strings.h>
++
++#include <utility>
++
++using android::base::Split;
++using android::base::Trim;
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++bool PowerStatsEnergyAttribution::readUidTimeInState(AttributionStats *attrStats,
++                                                     std::string path) {
++    std::unique_ptr<FILE, decltype(&fclose)> fp(fopen(path.c_str(), "r"), fclose);
++    if (!fp) {
++        PLOG(ERROR) <<  __func__ << ":Failed to open file " << path;
++        return false;
++    }
++
++    char *buf = nullptr;
++    size_t size = 0;
++    getline(&buf, &size, fp.get());
++    attrStats->uidTimeInStateNames = Split(Trim(buf), " ");
++    // first element will be "uid:" and it's useless
++    attrStats->uidTimeInStateNames.erase(attrStats->uidTimeInStateNames.begin());
++
++    while (getline(&buf, &size, fp.get()) != -1) {
++        std::vector<std::string> uidInfos = Split(Trim(buf), " ");
++        uidInfos[0].pop_back();
++        int32_t uid;
++        if (!::android::base::ParseInt(uidInfos[0], &uid)) {
++            PLOG(ERROR) << __func__ << "Failed to parse uid from " << path;
++            free(buf);
++            return false;
++        }
++
++        std::vector<long> uidStats;
++        // first element will be uid number so skipping it
++        for (auto it = ++uidInfos.begin(); it != uidInfos.end(); ++it) {
++            long uidStat;
++            if (!::android::base::ParseInt(*it, &uidStat)) {
++                PLOG(ERROR) << __func__ << "Failed to parse uidStat from " << path;
++                free(buf);
++                return false;
++            }
++            uidStats.push_back(uidStat);
++        }
++        attrStats->uidTimeInStats.emplace(uid, uidStats);
++    }
++
++    free(buf);
++    return true;
++}
++
++AttributionStats PowerStatsEnergyAttribution::getAttributionStats(
++                                                                  std::unordered_map<int32_t,
++                                                                  std::string> paths) {
++    AttributionStats attrStats;
++
++    if (paths.count(UID_TIME_IN_STATE) &&
++        !readUidTimeInState(&attrStats, paths.at(UID_TIME_IN_STATE))) {
++            PLOG(ERROR) << ":Failed to read uid_time_in_state";
++            return {};
++    }
++
++    return attrStats;
++}
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/dataproviders/PowerStatsEnergyConsumer.cpp b/powerstats/dataproviders/PowerStatsEnergyConsumer.cpp
+new file mode 100644
+index 00000000..38db9353
+--- /dev/null
++++ b/powerstats/dataproviders/PowerStatsEnergyConsumer.cpp
+@@ -0,0 +1,237 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <dataproviders/PowerStatsEnergyConsumer.h>
++
++#include <android-base/logging.h>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++PowerStatsEnergyConsumer::PowerStatsEnergyConsumer(std::shared_ptr<PowerStats> p,
++                                                   EnergyConsumerType type, std::string name,
++                                                   bool attr)
++    : kType(type), kName(name), mPowerStats(p), mWithAttribution(attr) {}
++
++std::unique_ptr<PowerStatsEnergyConsumer> PowerStatsEnergyConsumer::createMeterConsumer(
++        std::shared_ptr<PowerStats> p, EnergyConsumerType type, std::string name,
++        std::set<std::string> channelNames) {
++    return createMeterAndEntityConsumer(p, type, name, channelNames, "", {});
++}
++
++std::unique_ptr<PowerStatsEnergyConsumer> PowerStatsEnergyConsumer::createEntityConsumer(
++        std::shared_ptr<PowerStats> p, EnergyConsumerType type, std::string name,
++        std::string powerEntityName, std::map<std::string, int32_t> stateCoeffs) {
++    return createMeterAndEntityConsumer(p, type, name, {}, powerEntityName, stateCoeffs);
++}
++
++std::unique_ptr<PowerStatsEnergyConsumer> PowerStatsEnergyConsumer::createMeterAndEntityConsumer(
++        std::shared_ptr<PowerStats> p, EnergyConsumerType type, std::string name,
++        std::set<std::string> channelNames, std::string powerEntityName,
++        std::map<std::string, int32_t> stateCoeffs) {
++    auto ret =
++            std::unique_ptr<PowerStatsEnergyConsumer>(new PowerStatsEnergyConsumer(p, type, name));
++
++    if (ret->addEnergyMeter(channelNames) && ret->addPowerEntity(powerEntityName, stateCoeffs)) {
++        return ret;
++    }
++
++    LOG(ERROR) << "Failed to create PowerStatsEnergyConsumer for " << name;
++    return nullptr;
++}
++
++std::unique_ptr<PowerStatsEnergyConsumer> PowerStatsEnergyConsumer::createMeterAndAttrConsumer(
++        std::shared_ptr<PowerStats> p, EnergyConsumerType type, std::string name,
++        std::set<std::string> channelNames, std::unordered_map<int32_t, std::string> paths,
++        std::map<std::string, int32_t> stateCoeffs) {
++    auto ret = std::unique_ptr<PowerStatsEnergyConsumer>(
++            new PowerStatsEnergyConsumer(p, type, name, true));
++
++    if (ret->addEnergyMeter(channelNames) && ret->addAttribution(paths, stateCoeffs)) {
++        return ret;
++    }
++
++    LOG(ERROR) << "Failed to create PowerStatsEnergyConsumer for " << name;
++    return nullptr;
++}
++
++bool PowerStatsEnergyConsumer::addEnergyMeter(std::set<std::string> channelNames) {
++    if (channelNames.empty()) {
++        return true;
++    }
++
++    std::vector<Channel> channels;
++    mPowerStats->getEnergyMeterInfo(&channels);
++
++    for (const auto &c : channels) {
++        if (channelNames.count(c.name)) {
++            mChannelIds.insert(c.id);
++        }
++    }
++
++    return (mChannelIds.size() == channelNames.size());
++}
++
++bool PowerStatsEnergyConsumer::addPowerEntity(std::string powerEntityName,
++                                              std::map<std::string, int32_t> stateCoeffs) {
++    if (powerEntityName.empty() || stateCoeffs.empty()) {
++        return true;
++    }
++
++    std::vector<PowerEntity> powerEntities;
++    mPowerStats->getPowerEntityInfo(&powerEntities);
++
++    for (const auto &p : powerEntities) {
++        if (powerEntityName == p.name) {
++            mPowerEntityId = p.id;
++            for (const auto &s : p.states) {
++                if (stateCoeffs.count(s.name)) {
++                    mCoefficients.emplace(s.id, stateCoeffs.at(s.name));
++                }
++            }
++            break;
++        }
++    }
++
++    return (mCoefficients.size() == stateCoeffs.size());
++}
++
++bool PowerStatsEnergyConsumer::addAttribution(std::unordered_map<int32_t, std::string> paths,
++                                              std::map<std::string, int32_t> stateCoeffs) {
++    mAttrInfoPath = paths;
++
++    if (paths.count(UID_TIME_IN_STATE)) {
++        mEnergyAttribution = PowerStatsEnergyAttribution();
++        AttributionStats attrStats = mEnergyAttribution.getAttributionStats(paths);
++        if (attrStats.uidTimeInStateNames.empty()) {
++            LOG(ERROR) << "Failed to read uid_time_in_state";
++            return false;
++        }
++
++        // stateCoeffs should not blocking energy consumer to return power meter
++        // so just handle this in getEnergyConsumed()
++        if (stateCoeffs.empty()) {
++            return true;
++        }
++
++        int32_t stateId = 0;
++        for (const auto &stateName : attrStats.uidTimeInStateNames) {
++            if (stateCoeffs.count(stateName)) {
++                // When uid_time_in_state is not the only type of attribution,
++                // should condider to separate the coefficients just for attribution.
++                mCoefficients.emplace(stateId, stateCoeffs.at(stateName));
++            }
++            stateId++;
++        }
++    }
++
++    return (mCoefficients.size() == stateCoeffs.size());
++}
++
++std::optional<EnergyConsumerResult> PowerStatsEnergyConsumer::getEnergyConsumed(
++        const std::vector<EnergyMeasurement> &energyData) {
++    int64_t totalEnergyUWs = 0;
++    int64_t timestampMs = 0;
++
++    if (!mChannelIds.empty()) {
++        int found = 0;
++        for (const auto &e : energyData) {
++            if (mChannelIds.count(e.id)) {
++                totalEnergyUWs += e.energyUWs;
++                timestampMs = e.timestampMs;
++                found++;
++            }
++        }
++        if (found != mChannelIds.size()) {
++            LOG(ERROR) << "Failed to read energy meter";
++            return {};
++        }
++    }
++
++    std::vector<EnergyConsumerAttribution> attribution;
++    if (!mCoefficients.empty()) {
++        if (mWithAttribution) {
++            AttributionStats attrStats = mEnergyAttribution.getAttributionStats(mAttrInfoPath);
++            if (attrStats.uidTimeInStats.empty() || attrStats.uidTimeInStateNames.empty()) {
++                LOG(ERROR) << "Failed to read uid_time_in_state for attribution, return default EnergyConsumer";
++            } else {
++                int64_t totalRelativeEnergyUWs = 0;
++                for (const auto &uidTimeInStat : attrStats.uidTimeInStats) {
++                    int64_t uidEnergyUWs = 0;
++                    for (int id = 0; id < uidTimeInStat.second.size(); id++) {
++                        if (mCoefficients.count(id)) {
++                            int64_t d_time_in_state = uidTimeInStat.second.at(id);
++                            if (mUidTimeInStateSS.count(uidTimeInStat.first)) {
++                                d_time_in_state -= mUidTimeInStateSS.at(uidTimeInStat.first).at(id);
++                            }
++                            uidEnergyUWs += mCoefficients.at(id) * d_time_in_state;
++                        }
++                    }
++                    totalRelativeEnergyUWs += uidEnergyUWs;
++
++                    EnergyConsumerAttribution attr = {
++                        .uid = uidTimeInStat.first,
++                        .energyUWs = uidEnergyUWs,
++                    };
++                    attribution.emplace_back(attr);
++                }
++
++                int64_t d_totalEnergyUWs = totalEnergyUWs - mTotalEnergySS;
++                float powerScale = 0;
++                if (totalRelativeEnergyUWs != 0) {
++                    powerScale = static_cast<float>(d_totalEnergyUWs) / totalRelativeEnergyUWs;
++                }
++                for (auto &attr : attribution) {
++                    attr.energyUWs = (int64_t)(attr.energyUWs * powerScale) +
++                                     (mUidEnergySS.count(attr.uid) ? mUidEnergySS.at(attr.uid) : 0);
++                    mUidEnergySS[attr.uid] = attr.energyUWs;
++                }
++
++                mUidTimeInStateSS = attrStats.uidTimeInStats;
++                mTotalEnergySS = totalEnergyUWs;
++            }
++        } else {
++            std::vector<StateResidencyResult> results;
++            if (mPowerStats->getStateResidency({mPowerEntityId}, &results).isOk()) {
++                for (const auto &s : results[0].stateResidencyData) {
++                    if (mCoefficients.count(s.id)) {
++                        totalEnergyUWs += mCoefficients.at(s.id) * s.totalTimeInStateMs;
++                    }
++                }
++            } else {
++                LOG(ERROR) << "Failed to get state residency";
++                return {};
++            }
++        }
++    }
++
++    return EnergyConsumerResult{.timestampMs = timestampMs,
++                                .energyUWs = totalEnergyUWs,
++                                .attribution = attribution};
++}
++
++std::string PowerStatsEnergyConsumer::getConsumerName() {
++    return kName;
++}
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/dataproviders/WlanStateResidencyDataProvider.cpp b/powerstats/dataproviders/WlanStateResidencyDataProvider.cpp
+new file mode 100644
+index 00000000..59a57fe5
+--- /dev/null
++++ b/powerstats/dataproviders/WlanStateResidencyDataProvider.cpp
+@@ -0,0 +1,112 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <android-base/logging.h>
++#include <android-base/properties.h>
++#include <android-base/strings.h>
++
++#include <dataproviders/WlanStateResidencyDataProvider.h>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++enum {
++    ACTIVE_ID = 0,
++    DEEPSLEEP_ID = 1,
++};
++
++static bool extractStat(const char *line, const std::string &prefix, uint64_t *stat) {
++    char const *prefixStart = strstr(line, prefix.c_str());
++    if (prefixStart == nullptr) {
++        // Did not find the given prefix
++        return false;
++    }
++
++    *stat = strtoull(prefixStart + prefix.length(), nullptr, 0);
++    return true;
++}
++
++bool WlanStateResidencyDataProvider::getStateResidencies(
++        std::unordered_map<std::string, std::vector<StateResidency>> *residencies) {
++    std::vector<StateResidency> result = {{.id = ACTIVE_ID}, {.id = DEEPSLEEP_ID}};
++
++    std::string wlanDriverStatus = ::android::base::GetProperty("wlan.driver.status", "unloaded");
++    if (wlanDriverStatus != "ok") {
++        LOG(ERROR) << ": wlan is " << wlanDriverStatus;
++        // Return 0s for Wlan stats, because the driver is unloaded
++        residencies->emplace(mName, result);
++        return true;
++    }
++
++    // Using FILE* instead of std::ifstream for performance reasons (b/122253123)
++    std::unique_ptr<FILE, decltype(&fclose)> fp(fopen(mPath.c_str(), "r"), fclose);
++    if (!fp) {
++        PLOG(ERROR) << ":Failed to open file " << mPath;
++        return false;
++    }
++    size_t numFieldsRead = 0;
++    const size_t numFields = 4;
++    size_t len = 0;
++    char *line = nullptr;
++
++    while ((numFieldsRead < numFields) && (getline(&line, &len, fp.get()) != -1)) {
++        uint64_t stat = 0;
++        if (extractStat(line, "cumulative_sleep_time_ms:", &stat)) {
++            result[1].totalTimeInStateMs = stat;
++            ++numFieldsRead;
++        } else if (extractStat(line, "cumulative_total_on_time_ms:", &stat)) {
++            result[0].totalTimeInStateMs = stat;
++            ++numFieldsRead;
++        } else if (extractStat(line, "deep_sleep_enter_counter:", &stat)) {
++            result[0].totalStateEntryCount = stat;
++            result[1].totalStateEntryCount = stat;
++            ++numFieldsRead;
++        } else if (extractStat(line, "last_deep_sleep_enter_tstamp_ms:", &stat)) {
++            result[1].lastEntryTimestampMs = stat;
++            ++numFieldsRead;
++        }
++    }
++
++    free(line);
++
++    // End of file was reached and not all state data was parsed. Something
++    // went wrong
++    if (numFieldsRead != numFields) {
++        LOG(ERROR) << __func__ << ": failed to parse stats for wlan";
++        return false;
++    }
++
++    residencies->emplace(mName, result);
++
++    return true;
++}
++
++std::unordered_map<std::string, std::vector<State>> WlanStateResidencyDataProvider::getInfo() {
++    std::unordered_map<std::string, std::vector<State>> ret = {
++            {mName,
++             {{.id = ACTIVE_ID, .name = "Active"}, {.id = DEEPSLEEP_ID, .name = "Deep-Sleep"}}},
++    };
++    return ret;
++}
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/PowerStatsAidl.h b/powerstats/include/PowerStatsAidl.h
+new file mode 100644
+index 00000000..cc1b8a06
+--- /dev/null
++++ b/powerstats/include/PowerStatsAidl.h
+@@ -0,0 +1,112 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <aidl/android/hardware/power/stats/BnPowerStats.h>
++
++#include <optional>
++#include <unordered_map>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++class PowerStats : public BnPowerStats {
++  public:
++    class IStateResidencyDataProvider {
++      public:
++        virtual ~IStateResidencyDataProvider() = default;
++        virtual bool getStateResidencies(
++                std::unordered_map<std::string, std::vector<StateResidency>> *residencies) = 0;
++        virtual std::unordered_map<std::string, std::vector<State>> getInfo() = 0;
++        virtual void registerStatesUpdateCallback(
++                __unused std::function<void(const std::string &, const std::vector<State> &)>) {}
++    };
++
++    class IEnergyConsumer {
++      public:
++        virtual ~IEnergyConsumer() = default;
++        virtual std::pair<EnergyConsumerType, std::string> getInfo() = 0;
++        virtual std::optional<EnergyConsumerResult> getEnergyConsumed(
++                const std::vector<EnergyMeasurement> &energyData) = 0;
++        virtual std::string getConsumerName() = 0;
++    };
++
++    class IEnergyMeterDataProvider {
++      public:
++        virtual ~IEnergyMeterDataProvider() = default;
++        virtual ndk::ScopedAStatus readEnergyMeter(
++                const std::vector<int32_t> &in_channelIds,
++                std::vector<EnergyMeasurement> *_aidl_return) = 0;
++        virtual ndk::ScopedAStatus getEnergyMeterInfo(std::vector<Channel> *_aidl_return) = 0;
++    };
++
++    PowerStats() = default;
++    void addStateResidencyDataProvider(std::unique_ptr<IStateResidencyDataProvider> p);
++    void addEnergyConsumer(std::unique_ptr<IEnergyConsumer> p);
++    void setEnergyMeterDataProvider(std::unique_ptr<IEnergyMeterDataProvider> p);
++
++    // Methods from aidl::android::hardware::power::stats::IPowerStats
++    ndk::ScopedAStatus getPowerEntityInfo(std::vector<PowerEntity> *_aidl_return) override;
++    ndk::ScopedAStatus getStateResidency(const std::vector<int32_t> &in_powerEntityIds,
++                                         std::vector<StateResidencyResult> *_aidl_return) override;
++    ndk::ScopedAStatus getEnergyConsumerInfo(std::vector<EnergyConsumer> *_aidl_return) override;
++    ndk::ScopedAStatus getEnergyConsumed(const std::vector<int32_t> &in_energyConsumerIds,
++                                         std::vector<EnergyConsumerResult> *_aidl_return) override;
++    ndk::ScopedAStatus getEnergyMeterInfo(std::vector<Channel> *_aidl_return) override;
++    ndk::ScopedAStatus readEnergyMeter(const std::vector<int32_t> &in_channelIds,
++                                       std::vector<EnergyMeasurement> *_aidl_return) override;
++    binder_status_t dump(int fd, const char **args, uint32_t numArgs) override;
++
++  private:
++    void statesUpdate(const std::string &entityName, const std::vector<State> &states);
++
++    void getEntityStateNames(
++            std::unordered_map<int32_t, std::string> *entityNames,
++            std::unordered_map<int32_t, std::unordered_map<int32_t, std::string>> *stateNames);
++    void getChannelNames(std::unordered_map<int32_t, std::string> *channelNames);
++    void dumpStateResidency(std::ostringstream &oss, bool delta);
++    void dumpStateResidencyDelta(std::ostringstream &oss,
++                                 const std::vector<StateResidencyResult> &results);
++    void dumpStateResidencyOneShot(std::ostringstream &oss,
++                                   const std::vector<StateResidencyResult> &results);
++    void dumpEnergyConsumer(std::ostringstream &oss, bool delta,
++                            const std::vector<EnergyMeasurement> &energyData);
++    void dumpEnergyMeter(std::ostringstream &oss, bool delta,
++                         const std::vector<EnergyMeasurement> &energyData);
++    ndk::ScopedAStatus getEnergyConsumed(const std::vector<int32_t> &in_energyConsumerIds,
++                                         const std::vector<EnergyMeasurement> &in_energyMeasurement,
++                                         std::vector<EnergyConsumerResult> *_aidl_return);
++
++    std::vector<std::unique_ptr<IStateResidencyDataProvider>> mStateResidencyDataProviders;
++    std::vector<PowerEntity> mPowerEntityInfos;
++    /* Index that maps each power entity id to an entry in mStateResidencyDataProviders */
++    std::vector<size_t> mStateResidencyDataProviderIndex;
++
++    std::vector<std::unique_ptr<IEnergyConsumer>> mEnergyConsumers;
++    std::vector<EnergyConsumer> mEnergyConsumerInfos;
++
++    std::unique_ptr<IEnergyMeterDataProvider> mEnergyMeterDataProvider;
++};
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/dataproviders/DisplayStateResidencyDataProvider.h b/powerstats/include/dataproviders/DisplayStateResidencyDataProvider.h
+new file mode 100644
+index 00000000..70c814b9
+--- /dev/null
++++ b/powerstats/include/dataproviders/DisplayStateResidencyDataProvider.h
+@@ -0,0 +1,80 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <PowerStatsAidl.h>
++
++#include <utils/Looper.h>
++#include <utils/Thread.h>
++
++#include <cstdio>
++#include <cstring>
++#include <mutex>
++#include <thread>
++#include <unordered_map>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++class DisplayStateResidencyDataProvider : public PowerStats::IStateResidencyDataProvider {
++  public:
++    // name = powerEntityName to be associated with this data provider
++    // path = path to the display state file descriptor
++    // state = list of states to be tracked
++    DisplayStateResidencyDataProvider(std::string name, std::string path,
++                                      std::vector<std::string> states);
++    ~DisplayStateResidencyDataProvider();
++
++    // Methods from PowerStats::IStateResidencyDataProvider
++    bool getStateResidencies(
++            std::unordered_map<std::string, std::vector<StateResidency>> *residencies) override;
++    std::unordered_map<std::string, std::vector<State>> getInfo() override;
++
++  private:
++    // Poll for display state changes
++    void pollLoop();
++    // Main function to update the stats when display state change is detected
++    void updateStats();
++
++    // File descriptor of display state
++    int mFd;
++    // Path to display state file descriptor
++    const std::string mPath;
++    // Power Entity name associated with this data provider
++    const std::string mName;
++    // List of states to track indexed by mCurState
++    std::vector<std::string> mStates;
++    // Lock to protect concurrent read/write to mResidencies and mCurState
++    std::mutex mLock;
++    // Accumulated display state stats indexed by mCurState
++    std::vector<StateResidency> mResidencies;
++    // Index of current state
++    int mCurState;
++    // Looper to facilitate polling of display state file desciptor
++    ::android::sp<::android::Looper> mLooper;
++
++    std::thread mThread;
++};
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/dataproviders/GenericStateResidencyDataProvider.h b/powerstats/include/dataproviders/GenericStateResidencyDataProvider.h
+new file mode 100644
+index 00000000..75b86188
+--- /dev/null
++++ b/powerstats/include/dataproviders/GenericStateResidencyDataProvider.h
+@@ -0,0 +1,83 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <PowerStatsAidl.h>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++class GenericStateResidencyDataProvider : public PowerStats::IStateResidencyDataProvider {
++  public:
++    class StateResidencyConfig {
++      public:
++        std::string name;
++        std::string header;
++
++        bool entryCountSupported;
++        std::string entryCountPrefix;
++        std::function<uint64_t(uint64_t)> entryCountTransform;
++
++        bool totalTimeSupported;
++        std::string totalTimePrefix;
++        std::function<uint64_t(uint64_t)> totalTimeTransform;
++
++        bool lastEntrySupported;
++        std::string lastEntryPrefix;
++        std::function<uint64_t(uint64_t)> lastEntryTransform;
++    };
++
++    class PowerEntityConfig {
++      public:
++        PowerEntityConfig(const std::vector<StateResidencyConfig> &stateResidencyConfigs,
++                          const std::string &name, const std::string &header = "")
++            : mStateResidencyConfigs(std::move(stateResidencyConfigs)),
++              mName(std::move(name)),
++              mHeader(std::move(header)) {}
++        const std::vector<StateResidencyConfig> mStateResidencyConfigs;
++        const std::string mName;
++        const std::string mHeader;
++    };
++
++    GenericStateResidencyDataProvider(const std::string &path,
++                                      const std::vector<PowerEntityConfig> &configs)
++        : mPath(std::move(path)), mPowerEntityConfigs(std::move(configs)) {}
++    ~GenericStateResidencyDataProvider() = default;
++
++    // Methods from PowerStats::IStateResidencyDataProvider
++    bool getStateResidencies(
++            std::unordered_map<std::string, std::vector<StateResidency>> *residencies) override;
++    std::unordered_map<std::string, std::vector<State>> getInfo() override;
++
++  private:
++    const std::string mPath;
++    const std::vector<PowerEntityConfig> mPowerEntityConfigs;
++};
++
++std::vector<GenericStateResidencyDataProvider::StateResidencyConfig>
++generateGenericStateResidencyConfigs(
++        const GenericStateResidencyDataProvider::StateResidencyConfig &stateConfig,
++        const std::vector<std::pair<std::string, std::string>> &stateHeaders);
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/dataproviders/IioEnergyMeterDataProvider.h b/powerstats/include/dataproviders/IioEnergyMeterDataProvider.h
+new file mode 100644
+index 00000000..542cf4d1
+--- /dev/null
++++ b/powerstats/include/dataproviders/IioEnergyMeterDataProvider.h
+@@ -0,0 +1,63 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <PowerStatsAidl.h>
++
++#include <unordered_map>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++class IioEnergyMeterDataProvider : public PowerStats::IEnergyMeterDataProvider {
++  public:
++    IioEnergyMeterDataProvider(const std::vector<std::string> &deviceNames,
++                               const bool useSelector = false);
++
++    // Methods from PowerStats::IRailEnergyDataProvider
++    ndk::ScopedAStatus readEnergyMeter(const std::vector<int32_t> &in_channelIds,
++                                       std::vector<EnergyMeasurement> *_aidl_return) override;
++    ndk::ScopedAStatus getEnergyMeterInfo(std::vector<Channel> *_aidl_return) override;
++
++  private:
++    void findIioEnergyMeterNodes();
++    void parseEnabledRails();
++    int parseEnergyValue(std::string path);
++    int parseEnergyContents(const std::string &contents);
++
++    std::mutex mLock;
++    std::unordered_map<std::string, std::string> mDevicePaths;  // key: path, value: device name
++    std::unordered_map<std::string, int32_t> mChannelIds;  // key: name, value: id
++    std::vector<Channel> mChannelInfos;
++    std::vector<EnergyMeasurement> mReading;
++
++    const std::vector<std::string> kDeviceNames;
++    const std::string kDeviceType = "iio:device";
++    const std::string kIioRootDir = "/sys/bus/iio/devices/";
++    const std::string kNameNode = "/name";
++    const std::string kEnabledRailsNode = "/enabled_rails";
++    const std::string kEnergyValueNode = "/energy_value";
++};
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/dataproviders/IioEnergyMeterDataSelector.h b/powerstats/include/dataproviders/IioEnergyMeterDataSelector.h
+new file mode 100644
+index 00000000..0c72151e
+--- /dev/null
++++ b/powerstats/include/dataproviders/IioEnergyMeterDataSelector.h
+@@ -0,0 +1,60 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <list>
++#include <string>
++#include <unordered_map>
++#include <vector>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++/**
++ * This class provides the necessary functionality for selection of energy meter
++ * based on file configurations.
++ */
++class IioEnergyMeterDataSelector {
++  public:
++    IioEnergyMeterDataSelector(const std::unordered_map<std::string, std::string> &devicePaths);
++
++  private:
++    void parseConfigData(const std::string data,
++                         std::unordered_map<std::string, std::list<std::string>> *deviceConfigs);
++    void applyConfigToDevices(
++            const std::unordered_map<std::string, std::list<std::string>> &deviceConfigs);
++    void applyConfigsByAscendingPriority();
++    void sendConfigurationComplete();
++
++    const std::unordered_map<std::string, std::string> kDevicePaths;
++    const std::string kSelectionNode = "/enabled_rails";
++    const std::string kSelectionComplete = "CONFIG_COMPLETE";
++
++    /* Order matters (ascending priority), see applyConfigsByAscendingPriority() */
++    const std::vector<std::string> kConfigPaths = {
++            "/data/vendor/powerstats/odpm_config",
++    };
++};
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/dataproviders/PixelStateResidencyDataProvider.h b/powerstats/include/dataproviders/PixelStateResidencyDataProvider.h
+new file mode 100644
+index 00000000..3221160e
+--- /dev/null
++++ b/powerstats/include/dataproviders/PixelStateResidencyDataProvider.h
+@@ -0,0 +1,111 @@
++/*
++ * Copyright (C) 2021 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <PowerStatsAidl.h>
++#include <aidl/android/vendor/powerstats/BnPixelStateResidencyCallback.h>
++#include <aidl/android/vendor/powerstats/BnPixelStateResidencyProvider.h>
++
++#include <android/binder_manager.h>
++
++using ::aidl::android::vendor::powerstats::BnPixelStateResidencyProvider;
++using ::aidl::android::vendor::powerstats::IPixelStateResidencyCallback;
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++class PixelStateResidencyDataProvider : public PowerStats::IStateResidencyDataProvider {
++  public:
++    PixelStateResidencyDataProvider();
++    ~PixelStateResidencyDataProvider() = default;
++    void addEntity(std::string name, std::vector<State> states);
++    void start();
++
++    // Methods from PowerStats::IStateResidencyDataProvider
++    bool getStateResidencies(
++            std::unordered_map<std::string, std::vector<StateResidency>> *residencies) override;
++    std::unordered_map<std::string, std::vector<State>> getInfo() override;
++
++  private:
++    class ProviderService : public BnPixelStateResidencyProvider {
++      public:
++        ProviderService(PixelStateResidencyDataProvider *enclosed) : mEnclosed(enclosed) {}
++        // Methods from BnPixelStateResidencyProvider
++        ::ndk::ScopedAStatus registerCallback(
++                const std::string &in_entityName,
++                const std::shared_ptr<IPixelStateResidencyCallback> &in_cb) override {
++            return mEnclosed->registerCallback(in_entityName, in_cb);
++        }
++
++        ::ndk::ScopedAStatus registerCallbackByStates(
++                const std::string &in_entityName,
++                const std::shared_ptr<IPixelStateResidencyCallback> &in_cb,
++                const std::vector<State> &in_states) override {
++            return mEnclosed->registerCallbackByStates(in_entityName, in_cb, in_states);
++        }
++
++        ::ndk::ScopedAStatus unregisterCallback(
++                const std::shared_ptr<IPixelStateResidencyCallback> &in_cb) override {
++            return mEnclosed->unregisterCallback(in_cb);
++        }
++
++      private:
++        PixelStateResidencyDataProvider *mEnclosed;
++    };
++
++    struct Entry {
++        Entry(std::string name, std::vector<State> states)
++            : mName(name), mStates(states), mCallback(nullptr) {}
++        std::string mName;
++        std::vector<State> mStates;
++        std::shared_ptr<IPixelStateResidencyCallback> mCallback;
++    };
++
++    void registerStatesUpdateCallback(
++            std::function<void(const std::string &, const std::vector<State> &)>
++                    statesUpdateCallback) override;
++
++    ::ndk::ScopedAStatus registerCallback(
++            const std::string &in_entityName,
++            const std::shared_ptr<IPixelStateResidencyCallback> &in_cb);
++
++    ::ndk::ScopedAStatus registerCallbackByStates(
++            const std::string &in_entityName,
++            const std::shared_ptr<IPixelStateResidencyCallback> &in_cb,
++            const std::vector<State> &in_states);
++
++    ::ndk::ScopedAStatus unregisterCallback(
++            const std::shared_ptr<IPixelStateResidencyCallback> &in_cb);
++
++    ::ndk::ScopedAStatus getStateResidenciesTimed(const Entry &entry,
++                                                  std::vector<StateResidency> *residency);
++
++    const std::string kInstance = "power.stats-vendor";
++    std::mutex mLock;
++    std::shared_ptr<ProviderService> mProviderService;
++    std::vector<Entry> mEntries;
++    std::function<void(const std::string &, const std::vector<State> &)> mStatesUpdateCallback;
++};
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/dataproviders/PowerStatsEnergyAttribution.h b/powerstats/include/dataproviders/PowerStatsEnergyAttribution.h
+new file mode 100644
+index 00000000..dacc54a6
+--- /dev/null
++++ b/powerstats/include/dataproviders/PowerStatsEnergyAttribution.h
+@@ -0,0 +1,63 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <map>
++#include <unordered_map>
++#include <vector>
++#include <string>
++
++enum AttributionType {
++    /* Parsing uid_time_in_state like following format.
++     * (see /proc/uid_time_in_state)
++     * uid: state_name_0, state_name_1, ..
++     * uid_0: time_in_state_0, time_in_state_1, ..
++     * uid_1: time_in_state_0, time_in_state_1, ..
++     */
++    UID_TIME_IN_STATE,
++};
++
++// Declaring different return values for each type of attributions
++struct AttributionStats {
++    /* Members for UID_TIME_IN_STATE
++     * uidTimeInStats: key = uid, val = {uid_time_in_state}
++     * uidTimeInStateNames: state_name_0, state_name_1, ..
++     */
++    std::unordered_map<int32_t, std::vector<long>> uidTimeInStats;
++    std::vector<std::string> uidTimeInStateNames;
++};
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++class PowerStatsEnergyAttribution {
++  public:
++    PowerStatsEnergyAttribution() = default;
++    ~PowerStatsEnergyAttribution() = default;
++    AttributionStats getAttributionStats(std::unordered_map<int32_t, std::string> paths);
++private:
++    bool readUidTimeInState(AttributionStats *attrStats, std::string path);
++};
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/dataproviders/PowerStatsEnergyConsumer.h b/powerstats/include/dataproviders/PowerStatsEnergyConsumer.h
+new file mode 100644
+index 00000000..05a3171e
+--- /dev/null
++++ b/powerstats/include/dataproviders/PowerStatsEnergyConsumer.h
+@@ -0,0 +1,103 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <PowerStatsAidl.h>
++#include <utils/RefBase.h>
++
++#include <map>
++#include <set>
++#include <unordered_set>
++
++#include "PowerStatsEnergyAttribution.h"
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++using ::android::sp;
++
++/**
++ * PowerStatsEnergyConsumer is an energy consumer that can be represented as
++ * EnergyConsumed = SUM_i(E_i) + SUM_j(C_j * T_j)
++ * where E_i is the energy of channel i of the EnergyMeter and
++ * where C_j is the coefficient (in mW) of state j and T_j is the total time (in ms) in state j
++ *
++ * Factory functions are provided to create PowerStatsEnergyConsumer of three varieties
++ * 1. MeterAndEntityConsumer - number of channels is > 0, and there is at least one C_j != 0
++ * 2. MeterConsumer - number of channels is > 0, and all C_j = 0
++ * 3. EntityConsumer - number of channels is 0, and there is at least one C_j != 0
++ */
++class PowerStatsEnergyConsumer : public PowerStats::IEnergyConsumer {
++  public:
++    static std::unique_ptr<PowerStatsEnergyConsumer> createMeterConsumer(
++            std::shared_ptr<PowerStats> p, EnergyConsumerType type, std::string name,
++            std::set<std::string> channelNames);
++    static std::unique_ptr<PowerStatsEnergyConsumer> createEntityConsumer(
++            std::shared_ptr<PowerStats> p, EnergyConsumerType type, std::string name,
++            std::string powerEntityName, std::map<std::string, int32_t> stateCoeffs);
++
++    static std::unique_ptr<PowerStatsEnergyConsumer> createMeterAndEntityConsumer(
++            std::shared_ptr<PowerStats> p, EnergyConsumerType type, std::string name,
++            std::set<std::string> channelNames, std::string powerEntityName,
++            std::map<std::string, int32_t> stateCoeffs);
++
++    static std::unique_ptr<PowerStatsEnergyConsumer> createMeterAndAttrConsumer(
++            std::shared_ptr<PowerStats> p, EnergyConsumerType type, std::string name,
++            std::set<std::string> channelNames, std::unordered_map<int32_t, std::string> paths,
++            std::map<std::string, int32_t> stateCoeffs);
++
++    std::pair<EnergyConsumerType, std::string> getInfo() override { return {kType, kName}; }
++
++    std::optional<EnergyConsumerResult> getEnergyConsumed(
++            const std::vector<EnergyMeasurement> &energyData) override;
++
++    std::string getConsumerName() override;
++
++  private:
++    PowerStatsEnergyConsumer(std::shared_ptr<PowerStats> p, EnergyConsumerType type,
++                             std::string name, bool attr = false);
++    bool addEnergyMeter(std::set<std::string> channelNames);
++    bool addPowerEntity(std::string powerEntityName, std::map<std::string, int32_t> stateCoeffs);
++    bool addAttribution(std::unordered_map<int32_t, std::string> paths,
++                        std::map<std::string, int32_t> stateCoeffs);
++
++    const EnergyConsumerType kType;
++    const std::string kName;
++    std::shared_ptr<PowerStats> mPowerStats;
++    std::unordered_set<int32_t> mChannelIds;
++    int32_t mPowerEntityId;
++    bool mWithAttribution;
++    std::unordered_map<int32_t, std::string> mAttrInfoPath;
++    PowerStatsEnergyAttribution mEnergyAttribution;
++    // Snapshot of each uid's energy, uid_time_in_state and total energy from power meter
++    // mUidTimeInStateSS: key = uid, val = {uid_time_in_state}
++    // mUidEnergySS:      key = uid, val = {uid's energy(UWs)}
++    // mTotalEnergySS:    total energy from power meter
++    std::unordered_map<int32_t, std::vector<long>> mUidTimeInStateSS;
++    std::unordered_map<int32_t, int64_t> mUidEnergySS;
++    int64_t mTotalEnergySS = 0;
++    std::map<int32_t, int32_t> mCoefficients;  // key = stateId, val = coefficients (mW)
++};
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/dataproviders/WlanStateResidencyDataProvider.h b/powerstats/include/dataproviders/WlanStateResidencyDataProvider.h
+new file mode 100644
+index 00000000..fe23963c
+--- /dev/null
++++ b/powerstats/include/dataproviders/WlanStateResidencyDataProvider.h
+@@ -0,0 +1,47 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <PowerStatsAidl.h>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace power {
++namespace stats {
++
++class WlanStateResidencyDataProvider : public PowerStats::IStateResidencyDataProvider {
++  public:
++    WlanStateResidencyDataProvider(std::string name, std::string path)
++        : mName(std::move(name)), mPath(std::move(path)) {}
++    ~WlanStateResidencyDataProvider() = default;
++
++    // Methods from PowerStats::IStateResidencyDataProvider
++    bool getStateResidencies(
++            std::unordered_map<std::string, std::vector<StateResidency>> *residencies) override;
++    std::unordered_map<std::string, std::vector<State>> getInfo() override;
++
++  private:
++    const std::string mName;
++    const std::string mPath;
++};
++
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/powerstats/include/pixelpowerstats/AidlStateResidencyDataProvider.h b/powerstats/include/pixelpowerstats/AidlStateResidencyDataProvider.h
+new file mode 100644
+index 00000000..0ab15bd9
+--- /dev/null
++++ b/powerstats/include/pixelpowerstats/AidlStateResidencyDataProvider.h
+@@ -0,0 +1,76 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef HARDWARE_GOOGLE_PIXEL_POWERSTATS_AIDLSTATERESIDENCYDATAPROVIDER_H
++#define HARDWARE_GOOGLE_PIXEL_POWERSTATS_AIDLSTATERESIDENCYDATAPROVIDER_H
++
++#include <android/vendor/powerstats/BnPixelPowerStatsCallback.h>
++#include <android/vendor/powerstats/BnPixelPowerStatsProvider.h>
++#include <pixelpowerstats/PowerStats.h>
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++
++using android::sp;
++using android::vendor::powerstats::BnPixelPowerStatsProvider;
++using android::vendor::powerstats::IPixelPowerStatsCallback;
++using binderStatus = android::binder::Status;
++using ::android::hidl::base::V1_0::IBase;
++
++class AidlStateResidencyDataProvider : public IStateResidencyDataProvider,
++                                       public BnPixelPowerStatsProvider,
++                                       public android::IBinder::DeathRecipient {
++  public:
++    AidlStateResidencyDataProvider() = default;
++    ~AidlStateResidencyDataProvider() = default;
++    void addEntity(uint32_t id, std::string entityName, std::vector<std::string> stateNames);
++
++    // From IStateResidencyDataProvider
++    bool getResults(std::unordered_map<uint32_t, PowerEntityStateResidencyResult> &results) override;
++    std::vector<PowerEntityStateSpace> getStateSpaces() override;
++
++    // From BnPixelPowerStatsProvider
++    binderStatus registerCallback(const std::string &entityName,
++                                  const sp<IPixelPowerStatsCallback> &callback) override;
++    binderStatus unregisterCallback(const sp<IPixelPowerStatsCallback> &callback) override;
++
++    // From IBinder::DeathRecipient
++    void binderDied(const wp<android::IBinder> &who) override;
++
++  private:
++    struct StateSpace {
++        uint32_t powerEntityId;
++        std::unordered_map<std::string, uint32_t> stateInfos;
++    };
++    bool buildResult(std::string entityName,
++                     const std::vector<android::vendor::powerstats::StateResidencyData> &stats,
++                     PowerEntityStateResidencyResult &result);
++    binderStatus unregisterCallbackInternal(const sp<IBinder> &callback);
++    std::unordered_map<std::string, StateSpace> mEntityInfos;
++    std::unordered_map<std::string, sp<IPixelPowerStatsCallback>> mCallbacks;
++    std::mutex mLock;
++};
++
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
++
++#endif  // HARDWARE_GOOGLE_PIXEL_POWERSTATS_AIDLSTATERESIDENCYDATAPROVIDER_H
+\ No newline at end of file
+diff --git a/powerstats/include/pixelpowerstats/DisplayStateResidencyDataProvider.h b/powerstats/include/pixelpowerstats/DisplayStateResidencyDataProvider.h
+new file mode 100644
+index 00000000..4a88dc3d
+--- /dev/null
++++ b/powerstats/include/pixelpowerstats/DisplayStateResidencyDataProvider.h
+@@ -0,0 +1,79 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef HARDWARE_GOOGLE_PIXEL_POWERSTATS_DISPLAYSTATERESIDENCYDATAPROVIDER_H
++#define HARDWARE_GOOGLE_PIXEL_POWERSTATS_DISPLAYSTATERESIDENCYDATAPROVIDER_H
++// TODO(b/167628903): Delete this file
++#include <pixelpowerstats/PowerStats.h>
++#include <utils/Looper.h>
++#include <utils/Thread.h>
++#include <cstdio>
++#include <cstring>
++#include <mutex>
++#include <thread>
++#include <unordered_map>
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++
++class DisplayStateResidencyDataProvider : public IStateResidencyDataProvider {
++  public:
++    // id = powerEntityId to be associated with this data provider
++    // path = path to the display state file descriptor
++    // state = list of states to be tracked
++    DisplayStateResidencyDataProvider(uint32_t id, std::string path,
++                                      std::vector<std::string> states);
++    ~DisplayStateResidencyDataProvider();
++    bool getResults(
++            std::unordered_map<uint32_t, PowerEntityStateResidencyResult> &results) override;
++    std::vector<PowerEntityStateSpace> getStateSpaces() override;
++
++  private:
++    // Poll for display state changes
++    void pollLoop();
++    // Main function to update the stats when display state change is detected
++    void updateStats();
++
++    // File descriptor of display state
++    int mFd;
++    // Path to display state file descriptor
++    const std::string mPath;
++    // powerEntityId associated with this data provider
++    const uint32_t mPowerEntityId;
++    // List of states to track indexed by mCurState
++    std::vector<std::string> mStates;
++    // Lock to protect concurrent read/write to mResidencies and mCurState
++    std::mutex mLock;
++    // Accumulated display state stats indexed by mCurState
++    std::vector<PowerEntityStateResidencyData> mResidencies;
++    // Index of current state
++    int mCurState;
++    // Looper to facilitate polling of display state file desciptor
++    sp<Looper> mLooper;
++
++    std::thread mThread;
++};
++
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
++
++#endif  // HARDWARE_GOOGLE_PIXEL_POWERSTATS_DISPLAYSTATERESIDENCYDATAPROVIDER_H
+diff --git a/powerstats/include/pixelpowerstats/GenericStateResidencyDataProvider.h b/powerstats/include/pixelpowerstats/GenericStateResidencyDataProvider.h
+new file mode 100644
+index 00000000..0b8fe32d
+--- /dev/null
++++ b/powerstats/include/pixelpowerstats/GenericStateResidencyDataProvider.h
+@@ -0,0 +1,81 @@
++/*
++ * Copyright (C) 2020 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef HARDWARE_GOOGLE_PIXEL_POWERSTATS_GENERICSTATERESIDENCYDATAPROVIDER_H
++#define HARDWARE_GOOGLE_PIXEL_POWERSTATS_GENERICSTATERESIDENCYDATAPROVIDER_H
++// TODO(b/167628903): Delete this file
++#include <pixelpowerstats/PowerStats.h>
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++
++class StateResidencyConfig {
++  public:
++    std::string name;
++    std::string header;
++
++    bool entryCountSupported;
++    std::string entryCountPrefix;
++    std::function<uint64_t(uint64_t)> entryCountTransform;
++
++    bool totalTimeSupported;
++    std::string totalTimePrefix;
++    std::function<uint64_t(uint64_t)> totalTimeTransform;
++
++    bool lastEntrySupported;
++    std::string lastEntryPrefix;
++    std::function<uint64_t(uint64_t)> lastEntryTransform;
++};
++
++class PowerEntityConfig {
++  public:
++    PowerEntityConfig(const std::vector<StateResidencyConfig> &stateResidencyConfigs);
++    PowerEntityConfig(const std::string &header,
++                      const std::vector<StateResidencyConfig> &stateResidencyConfigs);
++    PowerEntityConfig(const uint32_t start_id, const std::string &header,
++                      const std::vector<StateResidencyConfig> &stateResidencyConfigs);
++    std::string mHeader;
++    std::vector<std::pair<uint32_t, StateResidencyConfig>> mStateResidencyConfigs;
++};
++
++class GenericStateResidencyDataProvider : public IStateResidencyDataProvider {
++  public:
++    GenericStateResidencyDataProvider(std::string path) : mPath(std::move(path)) {}
++    ~GenericStateResidencyDataProvider() = default;
++    void addEntity(uint32_t id, const PowerEntityConfig &config);
++    bool getResults(
++            std::unordered_map<uint32_t, PowerEntityStateResidencyResult> &results) override;
++    std::vector<PowerEntityStateSpace> getStateSpaces() override;
++
++  private:
++    const std::string mPath;
++    std::vector<std::pair<uint32_t, PowerEntityConfig>> mPowerEntityConfigs;
++};
++
++std::vector<StateResidencyConfig> generateGenericStateResidencyConfigs(
++        const StateResidencyConfig &stateConfig,
++        const std::vector<std::pair<std::string, std::string>> &stateHeaders);
++
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
++
++#endif  // HARDWARE_GOOGLE_PIXEL_POWERSTATS_GENERICSTATERESIDENCYDATAPROVIDER_H
+diff --git a/powerstats/include/pixelpowerstats/PowerStats.h b/powerstats/include/pixelpowerstats/PowerStats.h
+new file mode 100644
+index 00000000..b892ee01
+--- /dev/null
++++ b/powerstats/include/pixelpowerstats/PowerStats.h
+@@ -0,0 +1,122 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef POWERSTATS_INCLUDE_PIXELPOWERSTATS_POWERSTATS_H_
++#define POWERSTATS_INCLUDE_PIXELPOWERSTATS_POWERSTATS_H_
++
++#include <android/hardware/power/stats/1.0/IPowerStats.h>
++#include <utils/RefBase.h>
++#include <functional>
++#include <memory>
++#include <string>
++#include <unordered_map>
++#include <vector>
++
++namespace android {
++namespace hardware {
++
++namespace google {
++namespace pixel {
++namespace powerstats {
++
++using android::hardware::hidl_vec;
++using android::hardware::Return;
++using android::hardware::Void;
++using android::hardware::power::stats::V1_0::EnergyData;
++using android::hardware::power::stats::V1_0::IPowerStats;
++using android::hardware::power::stats::V1_0::PowerEntityInfo;
++using android::hardware::power::stats::V1_0::PowerEntityStateInfo;
++using android::hardware::power::stats::V1_0::PowerEntityStateResidencyData;
++using android::hardware::power::stats::V1_0::PowerEntityStateResidencyResult;
++using android::hardware::power::stats::V1_0::PowerEntityStateSpace;
++using android::hardware::power::stats::V1_0::PowerEntityType;
++using android::hardware::power::stats::V1_0::RailInfo;
++using android::hardware::power::stats::V1_0::Status;
++
++class IRailDataProvider {
++public:
++    virtual ~IRailDataProvider() = default;
++    virtual Return<void> getRailInfo(IPowerStats::getRailInfo_cb _hidl_cb) = 0;
++    virtual Return<void> getEnergyData(const hidl_vec<uint32_t> &railIndices,
++                                       IPowerStats::getEnergyData_cb _hidl_cb) = 0;
++    virtual Return<void> streamEnergyData(uint32_t timeMs, uint32_t samplingRate,
++                                          IPowerStats::streamEnergyData_cb _hidl_cb) = 0;
++};
++
++class IStateResidencyDataProvider : public virtual RefBase {
++public:
++    virtual ~IStateResidencyDataProvider() = default;
++    virtual bool getResults(
++        std::unordered_map<uint32_t, PowerEntityStateResidencyResult> &results) = 0;
++    virtual std::vector<PowerEntityStateSpace> getStateSpaces() = 0;
++};
++
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++
++namespace power {
++namespace stats {
++namespace V1_0 {
++namespace implementation {
++
++using android::hardware::google::pixel::powerstats::IRailDataProvider;
++using android::hardware::google::pixel::powerstats::IStateResidencyDataProvider;
++
++class PowerStats : public IPowerStats {
++public:
++    PowerStats() = default;
++    void setRailDataProvider(std::unique_ptr<IRailDataProvider> dataProvider);
++    uint32_t addPowerEntity(const std::string &name, PowerEntityType type);
++    // Using shared_ptr here because multiple power entities could depend on the
++    // same IStateResidencyDataProvider.
++    void addStateResidencyDataProvider(sp<IStateResidencyDataProvider> p);
++
++    // Methods from ::android::hardware::power::stats::V1_0::IPowerStats follow.
++    Return<void> getRailInfo(getRailInfo_cb _hidl_cb) override;
++    Return<void> getEnergyData(const hidl_vec<uint32_t> &railIndices,
++                               getEnergyData_cb _hidl_cb) override;
++    Return<void> streamEnergyData(uint32_t timeMs, uint32_t samplingRate,
++                                  streamEnergyData_cb _hidl_cb) override;
++    Return<void> getPowerEntityInfo(getPowerEntityInfo_cb _hidl_cb) override;
++    Return<void> getPowerEntityStateInfo(const hidl_vec<uint32_t> &powerEntityIds,
++                                         getPowerEntityStateInfo_cb _hidl_cb) override;
++    Return<void> getPowerEntityStateResidencyData(
++        const hidl_vec<uint32_t> &powerEntityIds,
++        getPowerEntityStateResidencyData_cb _hidl_cb) override;
++
++    // Methods from ::android::hidl::base::V1_0::IBase follow.
++    Return<void> debug(const hidl_handle &fd, const hidl_vec<hidl_string> &args) override;
++
++private:
++    std::unique_ptr<IRailDataProvider> mRailDataProvider;
++    std::vector<PowerEntityInfo> mPowerEntityInfos;
++    std::unordered_map<uint32_t, PowerEntityStateSpace> mPowerEntityStateSpaces;
++    std::unordered_map<uint32_t, sp<IStateResidencyDataProvider>> mStateResidencyDataProviders;
++
++    void debugStateResidency(const std::unordered_map<uint32_t, std::string> &entityNames, int fd,
++                             bool delta);
++    void debugEnergyData(int fd, bool delta);
++};
++
++}  // namespace implementation
++}  // namespace V1_0
++}  // namespace stats
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++
++#endif  // POWERSTATS_INCLUDE_PIXELPOWERSTATS_POWERSTATS_H_
+diff --git a/powerstats/include/pixelpowerstats/PowerStatsUtils.h b/powerstats/include/pixelpowerstats/PowerStatsUtils.h
+new file mode 100644
+index 00000000..2f7818ff
+--- /dev/null
++++ b/powerstats/include/pixelpowerstats/PowerStatsUtils.h
+@@ -0,0 +1,23 @@
++#ifndef HARDWARE_GOOGLE_PIXEL_POWERSTATS_POWERSTATSUTILS_H
++#define HARDWARE_GOOGLE_PIXEL_POWERSTATS_POWERSTATSUTILS_H
++
++#include <cstdint>
++#include <string>
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++namespace utils {
++
++bool extractStat(const char *line, const std::string &prefix, uint64_t &stat);
++
++}  // namespace utils
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
++
++#endif  // HARDWARE_GOOGLE_PIXEL_POWERSTATS_POWERSTATSUTILS_H
+\ No newline at end of file
+diff --git a/powerstats/include/pixelpowerstats/WlanStateResidencyDataProvider.h b/powerstats/include/pixelpowerstats/WlanStateResidencyDataProvider.h
+new file mode 100644
+index 00000000..296ff736
+--- /dev/null
++++ b/powerstats/include/pixelpowerstats/WlanStateResidencyDataProvider.h
+@@ -0,0 +1,32 @@
++#ifndef HARDWARE_GOOGLE_PIXEL_POWERSTATS_WLANSTATERESIDENCYDATAPROVIDER_H
++#define HARDWARE_GOOGLE_PIXEL_POWERSTATS_WLANSTATERESIDENCYDATAPROVIDER_H
++// TODO(b/167628903): Delete this file
++#include <pixelpowerstats/PowerStats.h>
++#include <unordered_map>
++
++namespace android {
++namespace hardware {
++namespace google {
++namespace pixel {
++namespace powerstats {
++
++class WlanStateResidencyDataProvider : public IStateResidencyDataProvider {
++  public:
++    WlanStateResidencyDataProvider(uint32_t id, std::string path);
++    ~WlanStateResidencyDataProvider() = default;
++    bool getResults(std::unordered_map<uint32_t, PowerEntityStateResidencyResult>
++            &results) override;
++    std::vector<PowerEntityStateSpace> getStateSpaces() override;
++
++  private:
++    const std::string mPath;
++    const uint32_t mPowerEntityId;
++};
++
++}  // namespace powerstats
++}  // namespace pixel
++}  // namespace google
++}  // namespace hardware
++}  // namespace android
++
++#endif  // HARDWARE_GOOGLE_PIXEL_POWERSTATS_WLANSTATERESIDENCYDATAPROVIDER_H
+\ No newline at end of file
+-- 
+2.53.0
+

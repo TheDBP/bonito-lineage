@@ -23,6 +23,10 @@
        repo has and is IDENTICAL to lineage-22.2, commit for commit. -->
   <project name="LineageOS/android_hardware_qcom_sdm845_display" path="hardware/qcom/sdm845/display" remote="github" revision="lineage-23.2" />
   <project name="LineageOS/android_hardware_qcom_sdm845_gps"     path="hardware/qcom/sdm845/gps"     remote="github" revision="lineage-23.2" />
+  <!-- The AOSP-style QCOM audio HAL (audio.primary.sdm710 and friends) that Pixel trees build,
+       as opposed to the hardware/qcom-caf/<soc>/audio forks. lineage-24.0 dropped it from the
+       manifest; lineage-23.2 is its newest branch and is the same commit as lineage-22.2. -->
+  <project name="LineageOS/android_hardware_qcom_audio"          path="hardware/qcom/audio"          remote="github" revision="lineage-23.2" />
 
   <!-- Proprietary vendor blobs (TheMuppets, per-device: sargo + its bonito common). -->
   <project name="TheMuppets/proprietary_vendor_google_sargo"  path="vendor/google/sargo"  remote="github" revision="lineage-22.2" />

@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 19 Sep 2026 20:30:14 -0400
+Subject: [PATCH] bonito/sargo: import the Soong namespaces lineage-24.0 added
+
+Two upstream changes on lineage-24.0 put modules this tree uses behind
+soong namespaces it does not import:
+
+  hardware/qcom/wlan          "wlan: Guard with soong namespace"
+  hardware/google/pixel/{health,pixelstats,power-libperfmgr,usb}
+                              "pixel: Guard anything that depends on
+                               pixelatoms with a soong namespace"
+
+Without the first, libwifi-hal's `defaults: ["libwifi-hal-qcom"]` no
+longer finds the dispatch cc_defaults at the top of hardware/qcom/wlan
+and instead resolves to the cc_library of the same name in
+hardware/qcom/wlan/legacy ("module libwifi-hal-qcom is not an defaults
+module"). Without the second, libpixelhealth, libpixelstats,
+pixelatoms-cpp, libpixelusb and the libperfmgr power service are
+invisible both to PRODUCT_PACKAGES and to this tree's own namespace.
+
+hardware/qcom/wlan is listed before hardware/qcom/wlan/legacy: the root
+namespace searches PRODUCT_SOONG_NAMESPACES in order, and the defaults
+module must win over the library.
+---
+ Android.bp | 3 +++
+ device.mk  | 5 +++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/Android.bp b/Android.bp
+index 3d0dcf0c..af06c92b 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -2,6 +2,9 @@ soong_namespace {
+     imports: [
+         "hardware/google/interfaces",
+         "hardware/google/pixel",
++        "hardware/google/pixel/health",
++        "hardware/google/pixel/pixelstats",
++        "hardware/google/pixel/usb",
+     ],
+ }
+ 
+diff --git a/device.mk b/device.mk
+index 4b40ab46..d68e831a 100644
+--- a/device.mk
++++ b/device.mk
+@@ -22,9 +22,14 @@ PRODUCT_SOONG_NAMESPACES += \
+     hardware/google/camera \
+     hardware/google/interfaces \
+     hardware/google/pixel \
++    hardware/google/pixel/health \
++    hardware/google/pixel/pixelstats \
++    hardware/google/pixel/power-libperfmgr \
++    hardware/google/pixel/usb \
+     hardware/qcom/audio \
+     hardware/qcom/sdm845/display \
+     hardware/qcom/sdm845/gps \
++    hardware/qcom/wlan \
+     hardware/qcom/wlan/legacy \
+     hardware/qcom-caf/bootctrl \
+     vendor/qcom/opensource/data-ipa-cfg-mgr-legacy-um
+-- 
+2.53.0
+
