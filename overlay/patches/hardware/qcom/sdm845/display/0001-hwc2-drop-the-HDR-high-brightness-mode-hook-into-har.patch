@@ -1,0 +1,94 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 19 Sep 2026 20:55:24 -0400
+Subject: [PATCH] hwc2: drop the HDR high-brightness-mode hook into
+ hardware.google.light
+
+lineage-24.0 deleted hardware/google/interfaces/light/1.0, so
+hwcomposer.qcom no longer links. The hook toggled the panel's HBM through
+the Google light HAL's setHbm() extension whenever an HDR layer covered
+more than half the screen; the generic AIDL lights HAL that replaces it
+has no such call. Brightness itself is unaffected -- SetDisplayBrightness
+writes the backlight sysfs node directly.
+---
+ sdm/libs/hwc2/Android.bp              |  1 -
+ sdm/libs/hwc2/hwc_display_primary.cpp | 27 ---------------------------
+ sdm/libs/hwc2/hwc_display_primary.h   |  8 --------
+ 3 files changed, 36 deletions(-)
+
+diff --git a/sdm/libs/hwc2/Android.bp b/sdm/libs/hwc2/Android.bp
+index cc6bbc58..c7f51b00 100644
+--- a/sdm/libs/hwc2/Android.bp
++++ b/sdm/libs/hwc2/Android.bp
+@@ -46,7 +46,6 @@ cc_library_shared {
+         "android.hardware.graphics.allocator@2.0",
+         "android.hardware.graphics.composer@2.2",
+         "android.hardware.graphics.composer@2.3",
+-        "hardware.google.light@1.0",
+     ],
+ 
+     srcs: [
+diff --git a/sdm/libs/hwc2/hwc_display_primary.cpp b/sdm/libs/hwc2/hwc_display_primary.cpp
+index 7b015636..4d86a6c0 100644
+--- a/sdm/libs/hwc2/hwc_display_primary.cpp
++++ b/sdm/libs/hwc2/hwc_display_primary.cpp
+@@ -316,33 +316,6 @@ HWC2::Error HWCDisplayPrimary::Present(int32_t *out_retire_fence) {
+     }
+   }
+ 
+-  if (CC_UNLIKELY(!has_init_light_server_)) {
+-    using ILight = ::hardware::google::light::V1_0::ILight;
+-    vendor_ILight_ = ILight::getService();
+-    if (vendor_ILight_ != nullptr) {
+-      vendor_ILight_->setHbm(false);
+-    } else {
+-      DLOGE("failed to get vendor light service");
+-    }
+-
+-    uint32_t panel_x, panel_y;
+-    GetPanelResolution(&panel_x, &panel_y);
+-    hbm_threshold_px_ = float(panel_x * panel_y) * hbm_threshold_pct_;
+-    DLOGI("Configure hbm_threshold_px_ to %f", hbm_threshold_px_);
+-
+-    has_init_light_server_ = true;
+-  }
+-
+-  const bool enable_hbm(hdr_largest_layer_px_ > hbm_threshold_px_);
+-  if (high_brightness_mode_ != enable_hbm && vendor_ILight_ != nullptr) {
+-    using ::android::hardware::light::V2_0::Status;
+-    if (Status::SUCCESS == vendor_ILight_->setHbm(enable_hbm)) {
+-      high_brightness_mode_ = enable_hbm;
+-    } else {
+-      DLOGE("failed to setHbm to %d", enable_hbm);
+-    }
+-  }
+-
+   CloseFd(&output_buffer_.acquire_fence_fd);
+   pending_commit_ = false;
+   return status;
+diff --git a/sdm/libs/hwc2/hwc_display_primary.h b/sdm/libs/hwc2/hwc_display_primary.h
+index 4295f523..744cf00b 100644
+--- a/sdm/libs/hwc2/hwc_display_primary.h
++++ b/sdm/libs/hwc2/hwc_display_primary.h
+@@ -30,7 +30,6 @@
+ #ifndef __HWC_DISPLAY_PRIMARY_H__
+ #define __HWC_DISPLAY_PRIMARY_H__
+ 
+-#include <hardware/google/light/1.0/ILight.h>
+ #include <limits>
+ #include <string>
+ #include <mutex>
+@@ -138,13 +137,6 @@ class HWCDisplayPrimary : public HWCDisplay {
+   void *output_buffer_base_ = nullptr;
+   int default_mode_status_ = 0;
+ 
+-  // Members for HBM feature
+-  static constexpr float hbm_threshold_pct_ = 0.5f;
+-  float hbm_threshold_px_ = std::numeric_limits<float>::max();
+-  android::sp<hardware::google::light::V1_0::ILight> vendor_ILight_ = nullptr;
+-  bool has_init_light_server_ = false;
+-  bool high_brightness_mode_ = false;
+-
+   // Members for Color sampling feature
+   histogram::HistogramCollector histogram;
+   std::mutex sampling_mutex;
