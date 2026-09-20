@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-4 patches across 1 upstream project, applied at build time from
+24 patches across 5 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -185,6 +185,17 @@ patch is one build failure or one removed interface:
   `precompiled_sepolicy` ("conflicting genfscon rules"). `/class/typec/usbc0` stays `sysfs_usb_c`.
   Preview the fix without a build: run the failing `secilc` line from the log with the edited
   `vendor_sepolicy.cil` substituted (it only reports the first conflict).
+
+### `packages/modules/Connectivity`
+
+- **0001 netbpfload: do not hang or reboot when bpf programs fail to load** — diagnosis only, while
+  the kernel fails NetBpfLoad's floor (`NetBpfLoad.cpp:1571`, 25Q2+ wants >= 5.4). Stock rc reboots
+  (`reboot_on_failure reboot,bpfloader-failed`, `netbpfload.35rc`) before init reaches `boot`, so
+  adbd never starts; without it init would hang at `wait_for_prop bpf.progs_loaded 1` instead. The
+  patch comments out the reboot and starts `netd1shot`/`netd` from `on property:bpf.progs_loaded=1`,
+  so on the failing kernel there is no netd (and no network, no system_server) but adbd and logcat
+  run. `adb logcat -s NetBpfLoad:* LibBpfLoader:*` shows the floor message. Drop it once the kernel
+  passes (eBPF backport + `ro.bpf.kver_override`).
 
 Preview checkpolicy errors without a build: the failing run leaves
 `out/soong/.intermediates/system/sepolicy/vendor_sepolicy.conf/.../vendor_sepolicy.conf`; loop
