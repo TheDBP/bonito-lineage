@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-27 patches across 5 upstream projects, applied at build time from
+28 patches across 6 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -212,6 +212,24 @@ patch is one build failure or one removed interface:
   `PRODUCT_ENFORCE_SELINUX_TREBLE_LABELING := false` keeps the report in the log. Proper fix, later:
   move those app domains and lines to system_ext sepolicy. Not a preflight candidate — the test
   needs the built APKs and both precompiled policies.
+
+### `vendor/google/bonito`
+
+The blob repo (TheMuppets, lineage-22.2 branch — there is no 24.0 one). The patch touches only
+`bonito-vendor.mk` and `Android.bp`; no blob bytes are in this repo.
+
+- **0001 drop the secure UI platform pieces** — `libsecureuisvc_jni.so` (system_ext) links libgui
+  by the pre-17 `SurfaceComposerClient::createSurface` signature and fails `check_elf_file`
+  (unresolved symbol; `allow_undefined_symbols` would only move the crash to runtime). It is the
+  JNI half of `com.qualcomm.qti.services.secureui`, the stock trusted-UI PIN pad; Lineage never
+  starts it. Drops the app, the JNI lib, `libsecureui_svcsock_system` and the system_ext copy of
+  `vendor.qti.hardware.tui_comm@1.0`. The vendor-side libs, HIDL service and its manifest entry
+  stay. Prebuilt `check_elf_file` runs late (droidcore), so preflight it: for every
+  `proprietary/(system|system_ext|product)/lib*/*.so` in the blob `Android.bp`, take
+  `llvm-nm -D --undefined-only` non-weak symbols and look them up in the defined symbols of the
+  staged `out/target/product/bonito/{system,system_ext,product}` libs plus
+  `apex/com.android.runtime/<arch>/bionic` and `apex/*/<arch>` (strip `@VERSION`). 14 platform
+  blobs here; this was the only one with a miss.
 
 ### `packages/modules/Connectivity`
 

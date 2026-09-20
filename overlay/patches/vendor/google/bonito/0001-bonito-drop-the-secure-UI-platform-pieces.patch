@@ -1,0 +1,169 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 18:23:04 -0400
+Subject: [PATCH] bonito: drop the secure UI platform pieces
+
+libsecureuisvc_jni.so (system_ext) links libgui by the pre-Android-17
+SurfaceComposerClient::createSurface signature and no longer resolves:
+
+  FAILED: .../libsecureuisvc_jni.so.check_elf_file
+  error: Unresolved symbol: _ZN7android21SurfaceComposerClient13createSurfaceE...
+
+It is the JNI half of com.qualcomm.qti.services.secureui, the trusted-UI
+PIN pad the stock ROM used for payment apps; nothing in Lineage talks to
+it. Drop the app and the three system_ext libraries that exist only for
+it (libsecureuisvc_jni, libsecureui_svcsock_system and the system_ext
+copy of vendor.qti.hardware.tui_comm@1.0). The vendor side (libsecureui,
+libsecureui_svcsock, tui_comm@1.0_vendor and its service) stays; the
+HIDL service is still declared in manifest.xml and the framework matrix.
+
+Of the 14 system/system_ext/product blob libraries in this tree, this is
+the only one with an unresolved symbol against the lineage-24.0 staging.
+---
+ Android.bp       | 103 -----------------------------------------------
+ bonito-vendor.mk |   4 --
+ 2 files changed, 107 deletions(-)
+
+diff --git a/Android.bp b/Android.bp
+index 8505f53..5f179ae 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -63,98 +63,6 @@ cc_prebuilt_library_shared {
+     product_specific: true,
+ }
+ 
+-cc_prebuilt_library_shared {
+-    name: "libsecureui_svcsock_system",
+-    owner: "google",
+-    strip: {
+-        none: true,
+-    },
+-    target: {
+-        android_arm64: {
+-            srcs: [
+-                "proprietary/system_ext/lib64/libsecureui_svcsock_system.so",
+-            ],
+-            shared_libs: [
+-                "libutils",
+-                "libcutils",
+-                "liblog",
+-                "libhidlbase",
+-                "libhidltransport",
+-                "libhwbinder",
+-                "vendor.qti.hardware.tui_comm@1.0",
+-                "libc++",
+-                "libc",
+-                "libm",
+-                "libdl",
+-            ],
+-        },
+-    },
+-    compile_multilib: "64",
+-    prefer: true,
+-    system_ext_specific: true,
+-}
+-
+-cc_prebuilt_library_shared {
+-    name: "libsecureuisvc_jni",
+-    owner: "google",
+-    strip: {
+-        none: true,
+-    },
+-    target: {
+-        android_arm64: {
+-            srcs: [
+-                "proprietary/system_ext/lib64/libsecureuisvc_jni.so",
+-            ],
+-            shared_libs: [
+-                "liblog",
+-                "libsecureui_svcsock_system",
+-                "libcutils",
+-                "libbinder",
+-                "libutils",
+-                "libhidlbase",
+-                "libgui",
+-                "libui",
+-                "vendor.display.config@1.0",
+-                "libc++",
+-                "libc",
+-                "libm",
+-                "libdl",
+-            ],
+-        },
+-    },
+-    compile_multilib: "64",
+-    prefer: true,
+-    system_ext_specific: true,
+-}
+-
+-cc_prebuilt_library_shared {
+-    name: "vendor.qti.hardware.tui_comm@1.0",
+-    owner: "google",
+-    strip: {
+-        none: true,
+-    },
+-    target: {
+-        android_arm64: {
+-            srcs: [
+-                "proprietary/system_ext/lib64/vendor.qti.hardware.tui_comm@1.0.so",
+-            ],
+-            shared_libs: [
+-                "libhidlbase",
+-                "liblog",
+-                "libutils",
+-                "libcutils",
+-                "libc++",
+-                "libc",
+-                "libm",
+-                "libdl",
+-            ],
+-        },
+-    },
+-    compile_multilib: "64",
+-    prefer: true,
+-    system_ext_specific: true,
+-}
+-
+ android_app_import {
+     name: "MobileFeliCaClient",
+     owner: "google",
+@@ -503,17 +411,6 @@ android_app_import {
+     product_specific: true,
+ }
+ 
+-android_app_import {
+-    name: "com.qualcomm.qti.services.secureui",
+-    owner: "google",
+-    apk: "proprietary/system_ext/app/com.qualcomm.qti.services.secureui/com.qualcomm.qti.services.secureui.apk",
+-    certificate: "platform",
+-    dex_preopt: {
+-        enabled: false,
+-    },
+-    system_ext_specific: true,
+-}
+-
+ android_app_import {
+     name: "CarrierSetup",
+     owner: "google",
+diff --git a/bonito-vendor.mk b/bonito-vendor.mk
+index 502409f..e51b38d 100644
+--- a/bonito-vendor.mk
++++ b/bonito-vendor.mk
+@@ -44,9 +44,6 @@ PRODUCT_COPY_FILES += \
+ PRODUCT_PACKAGES += \
+     libdmengine \
+     libdmjavaplugin \
+-    libsecureui_svcsock_system \
+-    libsecureuisvc_jni \
+-    vendor.qti.hardware.tui_comm@1.0 \
+     MobileFeliCaClient \
+     MobileFeliCaMenuMainApp \
+     MobileFeliCaSettingApp \
+@@ -75,7 +72,6 @@ PRODUCT_PACKAGES += \
+     TetheringEntitlement \
+     USCCDM \
+     WfcActivation \
+-    com.qualcomm.qti.services.secureui \
+     CarrierSetup \
+     EuiccSupportPixel \
+     EuiccSupportPixelPermissions \
