@@ -28,6 +28,14 @@
        manifest; lineage-23.2 is its newest branch and is the same commit as lineage-22.2. -->
   <project name="LineageOS/android_hardware_qcom_audio"          path="hardware/qcom/audio"          remote="github" revision="lineage-23.2" />
 
+  <!-- GNU binutils for the 4.9 kernel. lineage-24.0 removed GCC-assisted kernel builds
+       (vendor/lineage 21fb2c0c) and dropped these prebuilts from its manifest. A 4.9 Makefile
+       does not understand LLVM=1, and bonito_defconfig links LTO/CFI with ld.gold, so the
+       forge's lineage-24.0 vendor/lineage patch restores that path and needs these two
+       (same pins as the lineage-22.2 manifest). -->
+  <project name="LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9" path="prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9" remote="github" revision="lineage-19.1" clone-depth="1" />
+  <project name="LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9"     path="prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9"     remote="github" revision="lineage-19.1" clone-depth="1" />
+
   <!-- Proprietary vendor blobs (TheMuppets, per-device: sargo + its bonito common). -->
   <project name="TheMuppets/proprietary_vendor_google_sargo"  path="vendor/google/sargo"  remote="github" revision="lineage-22.2" />
   <project name="TheMuppets/proprietary_vendor_google_bonito" path="vendor/google/bonito" remote="github" revision="lineage-22.2" />
