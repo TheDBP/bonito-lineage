@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 09:35:42 -0400
+Subject: [PATCH] bonito: set the FCM target-level to 7
+
+lineage-24.0 ships framework compatibility matrices 7, 8, 202404, 202504,
+202604 and 202704 only; AOSP removed level 5 (Android R) and 6 (S) in the
+Android 17 finalisation (hardware/interfaces e5b9d41e51, ae70e5eeb9).
+libvintf's deprecation check requires a framework matrix at the device's
+target-level, so check_vintf_compatible fails with
+
+  Cannot find framework matrix at FCM version 5
+
+Move to 7, the lowest level the tree has. Kernel requirements for level 7
+are already not enforced (PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS is
+false) and the HAL versions bonito serves are all listed in matrix 7.
+Same change upstream made for coral/sunfish on lineage-24.0.
+---
+ manifest.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/manifest.xml b/manifest.xml
+index 1142dbb6..a0a3869e 100644
+--- a/manifest.xml
++++ b/manifest.xml
+@@ -1,4 +1,4 @@
+-<manifest version="1.0" type="device" target-level="5">
++<manifest version="1.0" type="device" target-level="7">
+     <hal format="hidl">
+         <name>android.hardware.audio</name>
+         <transport>hwbinder</transport>

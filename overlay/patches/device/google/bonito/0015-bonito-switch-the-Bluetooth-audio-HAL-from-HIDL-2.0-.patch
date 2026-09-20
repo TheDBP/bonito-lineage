@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 09:35:42 -0400
+Subject: [PATCH] bonito: switch the Bluetooth audio HAL from HIDL 2.0 to
+ AIDL
+
+The HIDL android.hardware.bluetooth.audio interfaces are in no framework
+compatibility matrix from level 7 up, so the 2.0 instance in the device
+manifest fails check_vintf's unused-HAL check:
+
+  android.hardware.bluetooth.audio@2.0::IBluetoothAudioProvidersFactory/default
+
+Ship the AOSP AIDL implementation (android.hardware.bluetooth.audio-impl)
+instead. android.hardware.audio.service loads it the same way it loaded
+the 2.0 passthrough, and it carries its own VINTF fragment, so the manual
+manifest entry goes. Same change as coral on lineage-24.0.
+---
+ device.mk    | 2 +-
+ manifest.xml | 9 ---------
+ 2 files changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/device.mk b/device.mk
+index 02522087..f633a8cc 100644
+--- a/device.mk
++++ b/device.mk
+@@ -490,7 +490,7 @@ PRODUCT_PACKAGES += \
+     android.hardware.audio@7.0-impl:32 \
+     android.hardware.audio.effect@7.0-impl:32 \
+     android.hardware.soundtrigger@2.2-impl \
+-    android.hardware.bluetooth.audio@2.0-impl \
++    android.hardware.bluetooth.audio-impl \
+     android.hardware.audio.service
+ 
+ PRODUCT_COPY_FILES += \
+diff --git a/manifest.xml b/manifest.xml
+index a0a3869e..9f443778 100644
+--- a/manifest.xml
++++ b/manifest.xml
+@@ -35,15 +35,6 @@
+             <instance>default</instance>
+         </interface>
+     </hal>
+-    <hal format="hidl">
+-        <name>android.hardware.bluetooth.audio</name>
+-        <transport>hwbinder</transport>
+-        <version>2.0</version>
+-        <interface>
+-            <name>IBluetoothAudioProvidersFactory</name>
+-            <instance>default</instance>
+-        </interface>
+-    </hal>
+     <hal format="hidl">
+         <name>android.hardware.camera.provider</name>
+         <transport>hwbinder</transport>

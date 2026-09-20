@@ -156,6 +156,27 @@ Carried forward from 22.2 unbuilt (the device tree is pinned to its 22.2 branch,
   (`…-UNOFFICIAL-<tag>-bonito`), overridable via `TURBO_BUILD_ID` (how the forge gives each preset
   its tag). Set before the `common_full_phone` inherit, or `version.mk` never sees it.
 
+lineage-24.0 port (the tree stays on its 22.2 branch; upstream has no 24.0 for sdm670). Each
+patch is one build failure or one removed interface:
+
+- **0005–0006** drop makefile includes 24.0 no longer has; import the Soong namespaces it added.
+- **0007–0009** HIDL → AIDL for dumpstate, health.storage and lights (the LineageOS AIDL lights HAL
+  replaces `hardware.google.light`; HBM hook dropped from hwc2, see `hardware/qcom/sdm845/display`).
+- **0010–0013** drop `disable_configstore`, `check_dynamic_partitions`, string-typed Soong bools, and
+  the deleted `vendor/lineage/config/device_framework_matrix.xml` include.
+- **0014 FCM target-level 5 → 7** — 24.0 has matrices 7, 8, 2024xx–2027xx only; libvintf's
+  deprecation check needs a matrix at the device's level, so 5 fails `check_vintf_compatible` with
+  `Cannot find framework matrix at FCM version 5`. Coral/sunfish made the same move upstream.
+- **0015 Bluetooth audio HIDL 2.0 → AIDL** and **0016 drop power.stats@1.0** — neither HIDL package
+  is in any matrix ≥ 7, so `checkUnusedHals` rejects the instances. The AIDL BT audio impl brings
+  its own VINTF fragment; power.stats comes back later as AIDL.
+
+Preview these checks without a build: run a built tree's `out/host/linux-x86/bin/checkvintf
+--check-compat` with `--dirmap /vendor:` pointing at a directory holding the device manifest
+(+ `<sepolicy><version>` appended) and its fragments, and `/system`,`/system_ext`,`/product`,`/apex`
+at any built 24.0 tree. Required-HAL enforcement is gone from libvintf (`c2de8e5`), so a device
+matrix naming a removed framework HAL (schedulerservice) no longer fails.
+
 ## License
 
 Apache-2.0 — see `LICENSE`. The patches under `overlay/patches/` modify Apache-2.0 (AOSP/LineageOS)
