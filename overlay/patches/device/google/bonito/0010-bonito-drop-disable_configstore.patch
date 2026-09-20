@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 19 Sep 2026 20:52:46 -0400
+Subject: [PATCH 1/2] bonito: drop disable_configstore
+
+hardware/interfaces/configstore is gone on lineage-24.0, and with it the
+disable_configstore override module. There is no configstore HAL left to
+disable.
+---
+ device-lineage.mk | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/device-lineage.mk b/device-lineage.mk
+index 506bc684..04c9086b 100644
+--- a/device-lineage.mk
++++ b/device-lineage.mk
+@@ -63,10 +63,6 @@ PRODUCT_PACKAGES += \
+ PRODUCT_PACKAGES += \
+     chre_daemon_msm
+ 
+-# Configstore
+-PRODUCT_PACKAGES += \
+-    disable_configstore
+-
+ # Display
+ $(call soong_config_set,qtidisplay,drmpp,true)
+ $(call soong_config_set,qtidisplay,target_uses_nv21_camera_preview,true)
