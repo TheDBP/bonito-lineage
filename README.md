@@ -170,6 +170,9 @@ patch is one build failure or one removed interface:
 - **0015 Bluetooth audio HIDL 2.0 → AIDL** and **0016 drop power.stats@1.0** — neither HIDL package
   is in any matrix ≥ 7, so `checkUnusedHals` rejects the instances. The AIDL BT audio impl brings
   its own VINTF fragment; power.stats comes back later as AIDL.
+- **0017 drop the PixelLogger sepolicy** — 0005 removed `PixelLogger.mk`, which was what put
+  `hardware/google/pixel-sepolicy/logger_app` (the `logger_app` type) on the sepolicy dirs; the
+  device's own `logger_app.te` then fails checkpolicy with `unknown type`. Same as coral `9e807a47`.
 
 Preview these checks without a build: run a built tree's `out/host/linux-x86/bin/checkvintf
 --check-compat` with `--dirmap /vendor:` pointing at a directory holding the device manifest
