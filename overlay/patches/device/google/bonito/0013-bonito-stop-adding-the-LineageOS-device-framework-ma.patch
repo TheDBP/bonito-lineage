@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 19 Sep 2026 21:01:32 -0400
+Subject: [PATCH] bonito: stop adding the LineageOS device framework matrix by
+ path
+
+vendor/lineage 60444c0d moved it to hardware/lineage/interfaces and ships
+it as framework_compatibility_matrix.lineage.xml from common.mk; the old
+path no longer exists and the Soong module referencing it fails analysis.
+---
+ BoardConfigLineage.mk | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/BoardConfigLineage.mk b/BoardConfigLineage.mk
+index 903bd5f7..3b3e10e3 100644
+--- a/BoardConfigLineage.mk
++++ b/BoardConfigLineage.mk
+@@ -14,9 +14,6 @@ TARGET_KERNEL_LLVM_BINUTILS := false
+ TARGET_KERNEL_SOURCE := kernel/google/msm-4.9
+ TARGET_NEEDS_DTBOIMAGE := true
+ 
+-# Manifests
+-DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE += vendor/lineage/config/device_framework_matrix.xml
+-
+ # Partitions
+ AB_OTA_PARTITIONS += \
+     vendor
