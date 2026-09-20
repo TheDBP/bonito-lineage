@@ -17,6 +17,13 @@
   <project name="LineageOS/android_device_google_gs-common"  path="device/google/gs-common"  remote="github" revision="lineage-23.2" />
   <project name="LineageOS/android_kernel_google_msm-4.9"    path="kernel/google/msm-4.9"    remote="github" revision="lineage-22.2" />
   <project name="LineageOS/android_packages_apps_ElmyraService" path="packages/apps/ElmyraService" remote="github" revision="lineage-24.0" />
+  <!-- The sdm845 QCOM HALs. lineage-24.0 dropped the whole sdm845 family from its manifest
+       (24.0 keeps only sm7250, sm8150 and wlan), but the blobs declare Soong namespaces for
+       display and gps, so Soong fails without them. lineage-23.2 is the newest branch either
+       repo has and is IDENTICAL to lineage-22.2, commit for commit. -->
+  <project name="LineageOS/android_hardware_qcom_sdm845_display" path="hardware/qcom/sdm845/display" remote="github" revision="lineage-23.2" />
+  <project name="LineageOS/android_hardware_qcom_sdm845_gps"     path="hardware/qcom/sdm845/gps"     remote="github" revision="lineage-23.2" />
+
   <!-- Proprietary vendor blobs (TheMuppets, per-device: sargo + its bonito common). -->
   <project name="TheMuppets/proprietary_vendor_google_sargo"  path="vendor/google/sargo"  remote="github" revision="lineage-22.2" />
   <project name="TheMuppets/proprietary_vendor_google_bonito" path="vendor/google/bonito" remote="github" revision="lineage-22.2" />
