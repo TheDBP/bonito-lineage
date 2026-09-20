@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 16:59:09 -0400
+Subject: [PATCH] bonito: report Treble labeling violations instead of failing
+ the build
+
+lineage-24.0 turns on check-selinux-treble-labeling for every build at
+BOARD_API_LEVEL 202604 (PRODUCT_ENFORCE_SELINUX_TREBLE_LABELING defaults to true in
+product_config.mk). The bonito vendor sepolicy predates the rule on both counts:
+
+- coredomain types defined in vendor policy: obdm_app, google_camera_app, con_monitor_app
+- vendor seapp_contexts labeling system_ext/product apps: org.codeaurora.ims and
+  com.qualcomm.qti.telephonyservice (qtelephony), com.google.android.hardwareinfo
+  (hardware_info_app), com.android.omadm.service (omadm_app),
+  com.qualcomm.qti.services.secureui (secure_ui_service_app), com.google.RilConfigService
+  (ril_config_service_app), com.google.android.grilservice (grilservice_app),
+  com.verizon.obdm (obdm_app)
+
+The proper fix moves those app domains and their seapp_contexts lines to system_ext
+sepolicy. Until then the test runs with --treat_as_warnings so the violations stay in
+the log without failing the image.
+---
+ device.mk | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/device.mk b/device.mk
+index 049e9f67..f931490e 100644
+--- a/device.mk
++++ b/device.mk
+@@ -79,6 +79,14 @@ PRODUCT_CHARACTERISTICS := nosdcard
+ PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false
+ PRODUCT_SHIPPING_API_LEVEL := 28
+ 
++# lineage-24.0 enforces Treble labeling (system/sepolicy/tests/treble_labeling_tests.md) on every
++# build at BOARD_API_LEVEL 202604: vendor sepolicy may neither define coredomain types nor label
++# apps that live on system_ext/product. This tree does both (obdm_app, google_camera_app,
++# con_monitor_app; the qtelephony, hardware_info_app, omadm_app, secure_ui_service_app,
++# ril_config_service_app, grilservice_app and obdm_app seapp_contexts). Report instead of failing
++# until those app domains move to system_ext sepolicy.
++PRODUCT_ENFORCE_SELINUX_TREBLE_LABELING := false
++
+ DEVICE_PACKAGE_OVERLAYS += $(LOCAL_PATH)/overlay
+ 
+ PRODUCT_COPY_FILES += \

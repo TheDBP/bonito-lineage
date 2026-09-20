@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-26 patches across 5 upstream projects, applied at build time from
+27 patches across 5 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -203,6 +203,15 @@ patch is one build failure or one removed interface:
   `BatteryRechargingControl`/`BatteryInfoUpdate` take the AIDL `HealthInfo`; libpixelhealth already
   has `HealthInfo` overloads. Untested on hardware: charger mode, battery defender, learned-capacity
   backup.
+- **0023 report Treble labeling violations instead of failing the build** — 24.0 runs
+  `check-selinux-treble-labeling` (`system/sepolicy/tests/treble_labeling_tests.md`) on every build
+  at `BOARD_API_LEVEL` 202604, and bonito's vendor sepolicy fails it on both counts: coredomain
+  types defined in vendor policy (`obdm_app`, `google_camera_app`, `con_monitor_app`) and vendor
+  `seapp_contexts` labeling system_ext/product apps (`qtelephony`, `hardware_info_app`,
+  `omadm_app`, `secure_ui_service_app`, `ril_config_service_app`, `grilservice_app`, `obdm_app`).
+  `PRODUCT_ENFORCE_SELINUX_TREBLE_LABELING := false` keeps the report in the log. Proper fix, later:
+  move those app domains and lines to system_ext sepolicy. Not a preflight candidate — the test
+  needs the built APKs and both precompiled policies.
 
 ### `packages/modules/Connectivity`
 
