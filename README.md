@@ -180,6 +180,11 @@ patch is one build failure or one removed interface:
   device tree now, sepolicy copied verbatim from 22.2 gs-common (coral `0d401e37`). Without it
   `pixel-sepolicy/power-libperfmgr` fails on `thermal_link_device`/`vendor_thermal_prop`. The AIDL
   thermal v3 fragment is in matrices 202504+, so `checkUnusedHals` is satisfied at level 7.
+- **0020 let the platform label `/sys/class/typec`** — vendor API 202604 labels it `sysfs_typec`
+  (system/sepolicy `a4f2ea842`), and `secilc` rejects a second `genfscon` on the same path at
+  `precompiled_sepolicy` ("conflicting genfscon rules"). `/class/typec/usbc0` stays `sysfs_usb_c`.
+  Preview the fix without a build: run the failing `secilc` line from the log with the edited
+  `vendor_sepolicy.cil` substituted (it only reports the first conflict).
 
 Preview checkpolicy errors without a build: the failing run leaves
 `out/soong/.intermediates/system/sepolicy/vendor_sepolicy.conf/.../vendor_sepolicy.conf`; loop

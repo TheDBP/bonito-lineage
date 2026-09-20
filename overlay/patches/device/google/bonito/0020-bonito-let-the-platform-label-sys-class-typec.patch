@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 13:39:59 -0400
+Subject: [PATCH] bonito: let the platform label /sys/class/typec
+
+The platform genfs_contexts label /sys/class/typec sysfs_typec since vendor API 202604
+(system/sepolicy a4f2ea842, USB4 support in system_server), and secilc rejects a second genfscon
+for the same path: "Found conflicting genfscon rules" at precompiled_sepolicy. Drop the vendor
+rule for the directory itself. /class/typec/usbc0 stays sysfs_usb_c, being a longer match, so
+hal_usb_impl, hal_health_default and ueventd keep their labels; the directory listing they do
+comes from hal_usb's r_dir_file(sysfs_typec) in the platform policy.
+---
+ sepolicy/vendor/google/genfs_contexts | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/sepolicy/vendor/google/genfs_contexts b/sepolicy/vendor/google/genfs_contexts
+index 6f71a4c1..71a4920a 100644
+--- a/sepolicy/vendor/google/genfs_contexts
++++ b/sepolicy/vendor/google/genfs_contexts
+@@ -6,7 +6,6 @@ genfscon sysfs /devices/virtual/ramoops/pstore/aes_key                  u:object
+ genfscon sysfs /devices/virtual/ramoops/pstore/aes_key_iv               u:object_r:sysfs_pstore:s0
+ genfscon sysfs /devices/virtual/ramoops/pstore/aes_key_tag              u:object_r:sysfs_pstore:s0
+ genfscon sysfs /devices/virtual/ramoops/pstore/use_alt                  u:object_r:sysfs_pstore:s0
+-genfscon sysfs /class/typec                                             u:object_r:sysfs_usb_c:s0
+ genfscon sysfs /class/typec/usbc0                                       u:object_r:sysfs_usb_c:s0
+ 
+ genfscon proc  /fts/driver_test                                         u:object_r:proc_touch:s0
