@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sat, 19 Sep 2026 20:57:48 -0400
+Subject: [PATCH] bonito: set the boolean Soong config variables as booleans
+
+hardware/lineage/interfaces 5b5eeb7 and hardware/qcom-caf/bootctrl now
+select on bare false, not the string "false"; a soong_config_set string
+no longer matches and Soong rejects the mixed select:
+  livedisplay/aidl/sdm/Android.bp: vintf_fragments: Expected all branches
+  to have the same type
+soong_config_set_bool for livedisplay_sdm.enable_dm and
+QTI_GPT_UTILS.USE_BSG_FRAMEWORK. The qtiaudio/qtidisplay variables stay
+strings; their consumers still match "true".
+---
+ device-lineage.mk | 2 +-
+ device.mk         | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/device-lineage.mk b/device-lineage.mk
+index 04c9086b..40639a63 100644
+--- a/device-lineage.mk
++++ b/device-lineage.mk
+@@ -46,7 +46,7 @@ $(call soong_config_set,lineage_health,charging_control_charging_disabled,1)
+ PRODUCT_PACKAGES += \
+     vendor.lineage.livedisplay-service.sdm
+ 
+-$(call soong_config_set,livedisplay_sdm,enable_dm,false)
++$(call soong_config_set_bool,livedisplay_sdm,enable_dm,false)
+ 
+ # Parts
+ PRODUCT_PACKAGES += \
+diff --git a/device.mk b/device.mk
+index f7221959..02522087 100644
+--- a/device.mk
++++ b/device.mk
+@@ -434,7 +434,7 @@ PRODUCT_PACKAGES += \
+     android.hardware.boot-service.qti \
+     android.hardware.boot-service.qti.recovery
+ 
+-$(call soong_config_set,QTI_GPT_UTILS,USE_BSG_FRAMEWORK,false)
++$(call soong_config_set_bool,QTI_GPT_UTILS,USE_BSG_FRAMEWORK,false)
+ 
+ PRODUCT_COPY_FILES += \
+     $(LOCAL_PATH)/thermal_info_config_$(PRODUCT_HARDWARE).json:$(TARGET_COPY_OUT_VENDOR)/etc/thermal_info_config.json
