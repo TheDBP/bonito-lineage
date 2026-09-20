@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-24 patches across 5 upstream projects, applied at build time from
+26 patches across 5 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -143,9 +143,13 @@ One patch per thing it enables.
 Carried forward from 22.2 unbuilt (the device tree is pinned to its 22.2 branch, so they apply as-is).
 
 - **0001 size the partitions for what the build bakes in** — Lineage reserves 1000 MiB in product
-  and 90 MiB each in system/system_ext for post-install GApps. With GApps, Firefox and the OEM
-  assets baked in, that pushes super over `BOARD_SUPER_PARTITION_SIZE`. Under `WITH_GAPPS`: product
-  32 MiB, system/system_ext 16 MiB each; `libre` keeps 512 MiB; `clean` keeps the full reservation.
+  and 90 MiB each in system/system_ext for post-install GApps. A 24.0 build with the OEM assets and
+  Syncthing-Fork stages ~4100 MiB against the 3880 MiB `google_dynamic_partitions` group with the
+  full reservation, so no variant keeps it. Under `WITH_GAPPS`: product 32 MiB, system/system_ext
+  16 MiB each; `WITH_FIREFOX` 128 MiB; everything else 512 MiB (~250 MiB of the group to spare).
+  Predict it from a built `out/`: sum the sparse-header sizes of the system/system_ext/product/
+  vendor `.img` files (content + reservation + ~4% ext4 overhead for any not built yet);
+  `check_partition_sizes` reads those, not `du`.
 - **0002 schedutil and powerhint tuning** — longer `down_rate_limit_us` on both clusters so the
   governor stops dropping frequency between frames, a higher top-app schedtune boost, powerhint
   floors raised to match. Smoothness, not benchmark peaks.
@@ -186,6 +190,20 @@ patch is one build failure or one removed interface:
   Preview the fix without a build: run the failing `secilc` line from the log with the edited
   `vendor_sepolicy.cil` substituted (it only reports the first conflict).
 
+- **0021 drop the HIDL context hub HAL** — `android.hardware.contexthub@1.2` is in no compatibility
+  matrix the tree ships (AIDL `IContextHub` only, FCM 7 up), so `check_vintf_compatible` rejects the
+  device manifest. No AIDL CHRE HAL for this platform exists in the tree (`system/chre` has no
+  `hal_generic/aidl`) and the AIDL `example` is a fake hub, so the HAL goes; the `chre` daemon and the
+  sensors HAL are unaffected. Its sepolicy goes with it.
+- **0022 health HAL to AIDL** — same cause for `android.hardware.health@2.1`. Rebuilt on
+  `hardware/interfaces/health/aidl/default` (`libhealth_aidl_impl`): `Health` subclass with
+  `UpdateHealthInfo` + eMMC `getStorageInfo`/`getDiskStats`, one binary
+  `android.hardware.health-service.bonito` that is also the charger (`--charger`, `charger_vendor`
+  domain; `overrides: charger`, so `init.hardware.rc`'s `vendor.charger` points at it).
+  `BatteryRechargingControl`/`BatteryInfoUpdate` take the AIDL `HealthInfo`; libpixelhealth already
+  has `HealthInfo` overloads. Untested on hardware: charger mode, battery defender, learned-capacity
+  backup.
+
 ### `packages/modules/Connectivity`
 
 - **0001 netbpfload: do not hang or reboot when bpf programs fail to load** — diagnosis only, while
@@ -207,6 +225,11 @@ Preview these checks without a build: run a built tree's `out/host/linux-x86/bin
 (+ `<sepolicy><version>` appended) and its fragments, and `/system`,`/system_ext`,`/product`,`/apex`
 at any built 24.0 tree. Required-HAL enforcement is gone from libvintf (`c2de8e5`), so a device
 matrix naming a removed framework HAL (schedulerservice) no longer fails.
+The vendor dir must hold the manifest fragments of every HAL *module* the product installs, not
+just the device tree's `manifest.xml`: `contexthub@1.2` and `health@2.1` came from
+`hardware/interfaces` fragments and a dry run fed only the device manifest passed while the build
+failed. Take `vendor/etc/vintf/` from the last built `out/` of the same device (any branch) and
+edit that.
 
 ## License
 

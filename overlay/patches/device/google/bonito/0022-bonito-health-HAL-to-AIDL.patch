@@ -1,0 +1,453 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 15:27:46 -0400
+Subject: [PATCH] bonito: health HAL to AIDL
+
+android.hardware.health@2.1 is gone from every framework compatibility
+matrix in the tree (AIDL IHealth only, FCM 7 upward), so the HIDL service
+fails check_vintf_compatible. Rebuild the device implementation on
+hardware/interfaces/health/aidl/default (libhealth_aidl_impl), the same
+shape as newer Pixels: Health subclass with UpdateHealthInfo plus the
+eMMC getStorageInfo/getDiskStats, one binary that is also the charger
+(--charger, charger_vendor domain), replacing /system/bin/charger.
+
+The two device helpers (BatteryRechargingControl, BatteryInfoUpdate) take
+the AIDL HealthInfo now; they only read and write batteryStatus and
+batteryLevel, whose values are the same. libpixelhealth already carries
+HealthInfo overloads for everything else.
+---
+ device.mk                                     |   3 +-
+ health/Android.bp                             |  24 ++-
+ health/BatteryInfoUpdate.cpp                  |   7 +-
+ health/BatteryInfoUpdate.h                    |   4 +-
+ health/BatteryRechargingControl.cpp           |   5 +-
+ health/BatteryRechargingControl.h             |   3 +-
+ health/Health.cpp                             | 139 +++++++-----------
+ .../android.hardware.health-service.bonito.rc |   6 +
+ ...android.hardware.health-service.bonito.xml |   7 +
+ init.hardware.rc                              |   4 +-
+ sepolicy/vendor/qcom/common/charger.te        |   3 +-
+ sepolicy/vendor/qcom/common/file_contexts     |   2 +-
+ 12 files changed, 95 insertions(+), 112 deletions(-)
+ create mode 100644 health/android.hardware.health-service.bonito.rc
+ create mode 100644 health/android.hardware.health-service.bonito.xml
+
+diff --git a/device.mk b/device.mk
+index afa7d253..049e9f67 100644
+--- a/device.mk
++++ b/device.mk
+@@ -328,8 +328,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
+ 
+ # Health HAL
+ PRODUCT_PACKAGES += \
+-    android.hardware.health@2.1-impl-bonito \
+-    android.hardware.health@2.1-service
++    android.hardware.health-service.bonito
+ 
+ # Storage health HAL
+ PRODUCT_PACKAGES += \
+diff --git a/health/Android.bp b/health/Android.bp
+index 44fc4ab7..747d85f6 100644
+--- a/health/Android.bp
++++ b/health/Android.bp
+@@ -18,12 +18,15 @@ package {
+     default_applicable_licenses: ["Android-Apache-2.0"],
+ }
+ 
+-cc_library_shared {
+-    name: "android.hardware.health@2.1-impl-bonito",
+-    stem: "android.hardware.health@2.0-impl-2.1-bonito",
+-
+-    proprietary: true,
++cc_binary {
++    name: "android.hardware.health-service.bonito",
++    defaults: ["libhealth_aidl_impl_user"],
++    vendor: true,
+     relative_install_path: "hw",
++    init_rc: ["android.hardware.health-service.bonito.rc"],
++    vintf_fragments: ["android.hardware.health-service.bonito.xml"],
++    overrides: ["charger"],
++
+     srcs: [
+         "Health.cpp",
+         "BatteryRechargingControl.cpp",
+@@ -38,19 +41,10 @@ cc_library_shared {
+     ],
+ 
+     static_libs: [
+-        "android.hardware.health@1.0-convert",
+-        "libbatterymonitor",
+-        "libhealth2impl",
+-        "libhealthloop",
++        "libhealth_aidl_impl",
+     ],
+ 
+     shared_libs: [
+-        "libbase",
+-        "libcutils",
+-        "libhidlbase",
+         "libpixelhealth",
+-        "libutils",
+-        "android.hardware.health@2.0",
+-        "android.hardware.health@2.1",
+     ],
+ }
+diff --git a/health/BatteryInfoUpdate.cpp b/health/BatteryInfoUpdate.cpp
+index 88f42d97..c39b6b7c 100644
+--- a/health/BatteryInfoUpdate.cpp
++++ b/health/BatteryInfoUpdate.cpp
+@@ -28,9 +28,10 @@ namespace health {
+ BatteryInfoUpdate::BatteryInfoUpdate() {
+ }
+ 
+-void BatteryInfoUpdate::update(struct android::BatteryProperties *props) {
+-    if (props->batteryStatus == android::BATTERY_STATUS_NOT_CHARGING)
+-        props->batteryStatus = android::BATTERY_STATUS_DISCHARGING;
++void BatteryInfoUpdate::update(aidl::android::hardware::health::HealthInfo *props) {
++    using aidl::android::hardware::health::BatteryStatus;
++    if (props->batteryStatus == BatteryStatus::NOT_CHARGING)
++        props->batteryStatus = BatteryStatus::DISCHARGING;
+ 
+ }
+ 
+diff --git a/health/BatteryInfoUpdate.h b/health/BatteryInfoUpdate.h
+index 53e96b4a..0a7e5723 100644
+--- a/health/BatteryInfoUpdate.h
++++ b/health/BatteryInfoUpdate.h
+@@ -17,7 +17,7 @@
+ #ifndef DEVICE_GOOGLE_BONITO_HEALTH_BATTERYINFOUPDATE_H
+ #define DEVICE_GOOGLE_BONITO_HEALTH_BATTERYINFOUPDATE_H
+ 
+-#include <batteryservice/BatteryService.h>
++#include <aidl/android/hardware/health/HealthInfo.h>
+ 
+ namespace device {
+ namespace google {
+@@ -27,7 +27,7 @@ namespace health {
+ class BatteryInfoUpdate {
+   public:
+     BatteryInfoUpdate();
+-    void update(struct android::BatteryProperties *props);
++    void update(aidl::android::hardware::health::HealthInfo *props);
+ 
+   private:
+ };
+diff --git a/health/BatteryRechargingControl.cpp b/health/BatteryRechargingControl.cpp
+index 687e975e..314f2f0c 100644
+--- a/health/BatteryRechargingControl.cpp
++++ b/health/BatteryRechargingControl.cpp
+@@ -72,7 +72,7 @@ int BatteryRechargingControl::RemapSOC(int soc) {
+     return ret_soc;
+ }
+ 
+-void BatteryRechargingControl::updateBatteryProperties(struct android::BatteryProperties *props) {
++void BatteryRechargingControl::updateBatteryProperties(aidl::android::hardware::health::HealthInfo *props) {
+     std::string charger_status;
+     double elapsed_time;
+     int cur_soc;
+@@ -83,7 +83,8 @@ void BatteryRechargingControl::updateBatteryProperties(struct android::BatteryPr
+     }
+ 
+     charger_status = android::base::Trim(charger_status);
+-    props->batteryStatus = getBatteryStatus(charger_status.c_str());
++    props->batteryStatus = static_cast<aidl::android::hardware::health::BatteryStatus>(
++        getBatteryStatus(charger_status.c_str()));
+ 
+     if ((state_ == INACTIVE) && (props->batteryLevel < kFullSoc))
+         return;
+diff --git a/health/BatteryRechargingControl.h b/health/BatteryRechargingControl.h
+index 2440ce91..2dbca553 100644
+--- a/health/BatteryRechargingControl.h
++++ b/health/BatteryRechargingControl.h
+@@ -20,6 +20,7 @@
+ #include <android-base/file.h>
+ #include <android-base/logging.h>
+ #include <android-base/strings.h>
++#include <aidl/android/hardware/health/HealthInfo.h>
+ #include <batteryservice/BatteryService.h>
+ #include <math.h>
+ #include <time.h>
+@@ -59,7 +60,7 @@ struct sysfsStringEnumMap {
+ class BatteryRechargingControl {
+   public:
+     BatteryRechargingControl();
+-    void updateBatteryProperties(struct android::BatteryProperties *props);
++    void updateBatteryProperties(aidl::android::hardware::health::HealthInfo *props);
+ 
+   private:
+     enum RechargeState state_;
+diff --git a/health/Health.cpp b/health/Health.cpp
+index 183308f5..a1269d5b 100644
+--- a/health/Health.cpp
++++ b/health/Health.cpp
+@@ -13,15 +13,15 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-#define LOG_TAG "android.hardware.health@2.1-impl-bonito"
++#define LOG_TAG "android.hardware.health-service.bonito"
+ #include <android-base/logging.h>
+ 
+ #include <android-base/parseint.h>
+ #include <android-base/strings.h>
+-#include <android/hardware/health/2.0/types.h>
+-#include <health2impl/Health.h>
++#include <android/binder_interface_utils.h>
++#include <health-impl/ChargerUtils.h>
++#include <health-impl/Health.h>
+ #include <health/utils.h>
+-#include <hal_conversion.h>
+ 
+ #include <pixelhealth/BatteryDefender.h>
+ #include <pixelhealth/BatteryMetricsLogger.h>
+@@ -43,18 +43,18 @@ namespace {
+ 
+ using namespace std::literals;
+ 
+-using android::hardware::health::V1_0::hal_conversion::convertFromHealthInfo;
+-using android::hardware::health::V1_0::hal_conversion::convertToHealthInfo;
+-using android::hardware::health::V2_0::DiskStats;
+-using android::hardware::health::V2_0::StorageAttribute;
+-using android::hardware::health::V2_0::StorageInfo;
+-using android::hardware::health::V2_0::Result;
+-using ::android::hardware::health::V2_1::IHealth;
++using aidl::android::hardware::health::DiskStats;
++using aidl::android::hardware::health::HalHealthLoop;
++using aidl::android::hardware::health::Health;
++using aidl::android::hardware::health::HealthInfo;
++using aidl::android::hardware::health::StorageInfo;
++using aidl::android::hardware::health::charger::ChargerCallback;
++using aidl::android::hardware::health::charger::ChargerModeMain;
+ using android::hardware::health::InitHealthdConfig;
++
+ using ::device::google::bonito::health::BatteryRechargingControl;
+ using ::device::google::bonito::health::BatteryInfoUpdate;
+ using ::device::google::bonito::health::LearnedCapacityBackupRestore;
+-
+ using hardware::google::pixel::health::BatteryDefender;
+ using hardware::google::pixel::health::BatteryMetricsLogger;
+ using hardware::google::pixel::health::BatteryThermalControl;
+@@ -110,34 +110,27 @@ void read_emmc_version(StorageInfo* info) {
+     info->version = ss.str();
+ }
+ 
+-void fill_emmc_storage_attribute(StorageAttribute* attr) {
+-    attr->isInternal = true;
+-    attr->isBootDevice = true;
+-    attr->name = kEmmcName;
+-}
+-
+ void private_healthd_board_init(struct healthd_config*) {
+     ccBackupRestoreBMS.Restore();
+     lcBackupRestore.Restore();
+ }
+ 
+-int private_healthd_board_battery_update(struct android::BatteryProperties *props) {
+-    battRechargingControl.updateBatteryProperties(props);
+-    deviceHealth.update(props);
+-    battThermalControl.updateThermalState(props);
+-    battInfoUpdate.update(props);
+-    battMetricsLogger.logBatteryProperties(props);
+-    shutdownMetrics.logShutdownVoltage(props);
+-    ccBackupRestoreBMS.Backup(props->batteryLevel);
++int private_healthd_board_battery_update(HealthInfo *health_info) {
++    battRechargingControl.updateBatteryProperties(health_info);
++    deviceHealth.update(health_info);
++    battThermalControl.updateThermalState(*health_info);
++    battInfoUpdate.update(health_info);
++    battMetricsLogger.logBatteryProperties(*health_info);
++    shutdownMetrics.logShutdownVoltage(*health_info);
++    ccBackupRestoreBMS.Backup(health_info->batteryLevel);
+     lcBackupRestore.Backup();
+-    battDefender.update(props);
++    battDefender.update(health_info);
+     return 0;
+ }
+ 
+ void private_get_storage_info(std::vector<StorageInfo> &vec_storage_info) {
+     vec_storage_info.resize(1);
+     StorageInfo* storage_info = &vec_storage_info[0];
+-    fill_emmc_storage_attribute(&storage_info->attr);
+ 
+     read_emmc_version(storage_info);
+     read_value_from_file(kEmmcHealthEol, &storage_info->eol);
+@@ -149,7 +142,6 @@ void private_get_storage_info(std::vector<StorageInfo> &vec_storage_info) {
+ void private_get_disk_stats(std::vector<DiskStats> &vec_stats) {
+     vec_stats.resize(1);
+     DiskStats* stats = &vec_stats[0];
+-    fill_emmc_storage_attribute(&stats->attr);
+ 
+     auto stream = assert_open(kDiskStatsFile);
+     // Regular diskstats entries
+@@ -166,74 +158,55 @@ void private_get_disk_stats(std::vector<DiskStats> &vec_stats) {
+            >> stats->ioInQueue;
+     return;
+ }
+-}  // anonymous namespace
+ 
+-namespace android {
+-namespace hardware {
+-namespace health {
+-namespace V2_1 {
+-namespace implementation {
+ class HealthImpl : public Health {
+- public:
+-  HealthImpl(std::unique_ptr<healthd_config>&& config)
+-    : Health(std::move(config)) {}
+-
+-  Return<void> getStorageInfo(getStorageInfo_cb _hidl_cb) override;
+-  Return<void> getDiskStats(getDiskStats_cb _hidl_cb) override;
++  public:
++    HealthImpl(std::string_view instance_name, std::unique_ptr<healthd_config>&& config)
++        : Health(std::move(instance_name), std::move(config)) {}
+ 
+- protected:
+-  void UpdateHealthInfo(HealthInfo* health_info) override;
++    ndk::ScopedAStatus getStorageInfo(std::vector<StorageInfo>* out) override;
++    ndk::ScopedAStatus getDiskStats(std::vector<DiskStats>* out) override;
+ 
++  protected:
++    void UpdateHealthInfo(HealthInfo* health_info) override;
+ };
+ 
+ void HealthImpl::UpdateHealthInfo(HealthInfo* health_info) {
+-  struct BatteryProperties props;
+-  convertFromHealthInfo(health_info->legacy.legacy, &props);
+-  private_healthd_board_battery_update(&props);
+-  convertToHealthInfo(&props, health_info->legacy.legacy);
++    private_healthd_board_battery_update(health_info);
+ }
+ 
+-Return<void> HealthImpl::getStorageInfo(getStorageInfo_cb _hidl_cb)
+-{
+-  std::vector<struct StorageInfo> info;
+-  private_get_storage_info(info);
+-  hidl_vec<struct StorageInfo> info_vec(info);
+-  if (!info.size()) {
+-      _hidl_cb(Result::NOT_SUPPORTED, info_vec);
+-  } else {
+-      _hidl_cb(Result::SUCCESS, info_vec);
+-  }
+-  return Void();
++ndk::ScopedAStatus HealthImpl::getStorageInfo(std::vector<StorageInfo>* out) {
++    private_get_storage_info(*out);
++    if (out->empty()) {
++        return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++    }
++    return ndk::ScopedAStatus::ok();
+ }
+ 
+-Return<void> HealthImpl::getDiskStats(getDiskStats_cb _hidl_cb)
+-{
+-  std::vector<struct DiskStats> stats;
+-  private_get_disk_stats(stats);
+-  hidl_vec<struct DiskStats> stats_vec(stats);
+-  if (!stats.size()) {
+-      _hidl_cb(Result::NOT_SUPPORTED, stats_vec);
+-  } else {
+-      _hidl_cb(Result::SUCCESS, stats_vec);
+-  }
+-  return Void();
++ndk::ScopedAStatus HealthImpl::getDiskStats(std::vector<DiskStats>* out) {
++    private_get_disk_stats(*out);
++    if (out->empty()) {
++        return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++    }
++    return ndk::ScopedAStatus::ok();
+ }
+ 
+-}  // namespace implementation
+-}  // namespace V2_1
+-}  // namespace health
+-}  // namespace hardware
+-}  // namespace android
++}  // anonymous namespace
+ 
+-extern "C" IHealth* HIDL_FETCH_IHealth(const char* instance) {
+-  using ::android::hardware::health::V2_1::implementation::HealthImpl;
+-  if (instance != "default"sv) {
+-      return nullptr;
+-  }
+-  auto config = std::make_unique<healthd_config>();
+-  InitHealthdConfig(config.get());
++static constexpr const char* gInstanceName = "default";
++static constexpr std::string_view gChargerArg{"--charger"};
+ 
+-  private_healthd_board_init(config.get());
++int main(int argc, char** argv) {
++    auto config = std::make_unique<healthd_config>();
++    InitHealthdConfig(config.get());
++    private_healthd_board_init(config.get());
++    auto binder = ndk::SharedRefBase::make<HealthImpl>(gInstanceName, std::move(config));
++
++    if (argc >= 2 && argv[1] == gChargerArg) {
++        return ChargerModeMain(binder, std::make_shared<ChargerCallback>(binder));
++    }
+ 
+-  return new HealthImpl(std::move(config));
++    LOG(INFO) << "Starting health HAL.";
++    auto hal_health_loop = std::make_shared<HalHealthLoop>(binder, binder);
++    return hal_health_loop->StartLoop();
+ }
+diff --git a/health/android.hardware.health-service.bonito.rc b/health/android.hardware.health-service.bonito.rc
+new file mode 100644
+index 00000000..25d8e8f7
+--- /dev/null
++++ b/health/android.hardware.health-service.bonito.rc
+@@ -0,0 +1,6 @@
++service vendor.health-default /vendor/bin/hw/android.hardware.health-service.bonito
++    class hal
++    user system
++    group system
++    capabilities WAKE_ALARM BLOCK_SUSPEND
++    file /dev/kmsg w
+diff --git a/health/android.hardware.health-service.bonito.xml b/health/android.hardware.health-service.bonito.xml
+new file mode 100644
+index 00000000..14828d45
+--- /dev/null
++++ b/health/android.hardware.health-service.bonito.xml
+@@ -0,0 +1,7 @@
++<manifest version="1.0" type="device">
++    <hal format="aidl">
++        <name>android.hardware.health</name>
++        <version>5</version>
++        <fqname>IHealth/default</fqname>
++    </hal>
++</manifest>
+diff --git a/init.hardware.rc b/init.hardware.rc
+index e48762f7..dc110c1c 100644
+--- a/init.hardware.rc
++++ b/init.hardware.rc
+@@ -40,9 +40,9 @@ on property:init.svc.vendor.charger=running
+     # Enable thermal mitigation
+     write /sys/devices/virtual/thermal/tz-by-name/backup-charge/mode enabled
+ 
+-service vendor.charger /system/bin/charger
++service vendor.charger /vendor/bin/hw/android.hardware.health-service.bonito --charger
+     class charger
+-    seclabel u:r:charger:s0
++    seclabel u:r:charger_vendor:s0
+     user system
+     group system wakelock input
+     capabilities SYS_BOOT
+diff --git a/sepolicy/vendor/qcom/common/charger.te b/sepolicy/vendor/qcom/common/charger.te
+index 26021a26..1df573d2 100644
+--- a/sepolicy/vendor/qcom/common/charger.te
++++ b/sepolicy/vendor/qcom/common/charger.te
+@@ -1 +1,2 @@
+-r_dir_file(charger, sysfs_msm_subsys)
++r_dir_file(charger_vendor, sysfs_msm_subsys)
++allow charger_vendor self:capability2 wake_alarm;
+diff --git a/sepolicy/vendor/qcom/common/file_contexts b/sepolicy/vendor/qcom/common/file_contexts
+index db236ad9..993684b6 100644
+--- a/sepolicy/vendor/qcom/common/file_contexts
++++ b/sepolicy/vendor/qcom/common/file_contexts
+@@ -149,7 +149,7 @@
+ /vendor/bin/hw/vendor\.qti\.hardware\.tui_comm@1\.0-service-qti       u:object_r:hal_tui_comm_exec:s0
+ /vendor/bin/hw/vendor\.google\.radioext@1\.0-service                 u:object_r:hal_radioext_default_exec:s0
+ /vendor/bin/hw/android\.hardware\.neuralnetworks@1\.0-service-paintbox    u:object_r:hal_neuralnetworks_paintbox_exec:s0
+-/vendor/bin/hw/android\.hardware\.health@2\.0-service\.bonito         u:object_r:hal_health_default_exec:s0
++/vendor/bin/hw/android\.hardware\.health-service\.bonito             u:object_r:hal_health_default_exec:s0
+ /vendor/bin/hw/vendor\.qti\.media\.c2@1\.0-service               u:object_r:mediacodec_exec:s0
+ /vendor/bin/hw/hardware\.google\.media\.c2@1\.0-service-software u:object_r:mediacodec_exec:s0
+ /vendor/bin/hw/vendor\.qti\.hardware\.display\.allocator@1\.0-service   u:object_r:hal_graphics_allocator_default_exec:s0

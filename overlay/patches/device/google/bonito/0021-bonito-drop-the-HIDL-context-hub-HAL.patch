@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 15:23:03 -0400
+Subject: [PATCH] bonito: drop the HIDL context hub HAL
+
+android.hardware.contexthub@1.2 is no longer in any framework compatibility
+matrix the tree ships (only the AIDL IContextHub is, FCM 7 upward), so
+check_vintf_compatible rejects a device manifest that still declares it.
+There is no AIDL CHRE HAL for this platform in the tree (system/chre carries
+no hal_generic/aidl here) and the AIDL 'example' service is a fake hub, so
+the HAL goes rather than being replaced. Sensors do not depend on it; the
+chre daemon keeps running on its own. The HAL's sepolicy goes with it.
+---
+ device.mk                                | 4 ----
+ sepolicy/vendor/google/file_contexts     | 1 -
+ sepolicy/vendor/google/hal_contexthub.te | 3 ---
+ 3 files changed, 8 deletions(-)
+ delete mode 100644 sepolicy/vendor/google/hal_contexthub.te
+
+diff --git a/device.mk b/device.mk
+index 773fabd6..afa7d253 100644
+--- a/device.mk
++++ b/device.mk
+@@ -422,10 +422,6 @@ PRODUCT_PACKAGES += \
+     fs_config_dirs \
+     fs_config_files
+ 
+-# Context hub HAL
+-PRODUCT_PACKAGES += \
+-    android.hardware.contexthub@1.2-service.generic
+-
+ # Boot control HAL
+ PRODUCT_PACKAGES += \
+     android.hardware.boot-service.qti \
+diff --git a/sepolicy/vendor/google/file_contexts b/sepolicy/vendor/google/file_contexts
+index dae59795..dd290a33 100644
+--- a/sepolicy/vendor/google/file_contexts
++++ b/sepolicy/vendor/google/file_contexts
+@@ -4,7 +4,6 @@
+ /dev/access-ramoops                                                         u:object_r:ramoops_device:s0
+ 
+ /vendor/bin/hw/android\.hardware\.atrace@1\.0-service.pixel                 u:object_r:hal_atrace_default_exec:s0
+-/vendor/bin/hw/android\.hardware\.contexthub@1\.2-service\.generic          u:object_r:hal_contexthub_default_exec:s0
+ /vendor/bin/hw/android\.hardware\.secure_element@1\.1-service-disabled      u:object_r:hal_secure_element_default_exec:s0
+ /vendor/bin/hw/android\.hardware\.power\.stats@1\.0-service\.pixel     u:object_r:hal_power_stats_default_exec:s0
+ /vendor/bin/hw/android\.hardware\.usb-service\.bonito                       u:object_r:hal_usb_impl_exec:s0
+diff --git a/sepolicy/vendor/google/hal_contexthub.te b/sepolicy/vendor/google/hal_contexthub.te
+deleted file mode 100644
+index 10c5d53d..00000000
+--- a/sepolicy/vendor/google/hal_contexthub.te
++++ /dev/null
+@@ -1,3 +0,0 @@
+-# Allow context hub HAL to communicate with daemon via socket
+-allow hal_contexthub_default chre:unix_stream_socket connectto;
+-allow hal_contexthub_default chre_socket:sock_file write;
