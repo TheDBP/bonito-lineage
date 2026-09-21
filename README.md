@@ -212,6 +212,13 @@ patch is one build failure or one removed interface:
   `PRODUCT_ENFORCE_SELINUX_TREBLE_LABELING := false` keeps the report in the log. Proper fix, later:
   move those app domains and lines to system_ext sepolicy. Not a preflight candidate — the test
   needs the built APKs and both precompiled policies.
+- **0024 install ueventd.rc at `/vendor/etc/ueventd.rc`** — Android 17 ueventd parses
+  `/system/etc/ueventd.rc` only (its `import /vendor/etc/ueventd.rc`); the legacy `/vendor/ueventd.rc`
+  path pre-T devices relied on is gone (system/core `1b926a344`). Without it every vendor `/dev` node
+  stays `0600 root`: surfaceflinger (`/dev/kgsl-3d0`, `/dev/ion`), keymaster/gatekeeper
+  (`/dev/qseecom`) and citadeld (`/dev/citadel0`) abort in a loop, no `avc:` anywhere, the phone
+  sits on the Google logo with no USB. Found in `pmsg-ramoops-0` (the last boot's logcat), not in
+  the console ring. Check any pre-T device tree for this before its first 24.0 boot.
 
 ### `kernel/google/msm-4.9`
 
