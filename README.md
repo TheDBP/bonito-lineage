@@ -233,6 +233,14 @@ comes from. What Android 17 userspace needs from the kernel, in the order it hit
   0002: `services_compute_xperms_decision()` has `BUG()` for type 3, and it is reachable (ioctl
   xperms and nlmsg xperms share the `(domain, self, netlink_route_socket)` key). No netlink xperm
   hook exists in 4.9, so the rules are inert; skip them, warn once.
+- **0004 cgroup: backport the cpuset_v2_mode v1 mount option** — upstream 4.14 `e1cba4b85daa` +
+  `b8d1b8ee93df`. Android 16+ `libprocessgroup` mounts the v1 cpuset hierarchy with
+  `noprefix,cpuset_v2_mode` and has no fallback; cgroup v1 answers an unknown option with `ENOENT`,
+  so `SetupCgroups` fails, `/sys/fs/cgroup` is never mounted, every `createProcessGroup()` fails,
+  `ueventd` and `apexd-bootstrap` never start, and `apexd-bootstrap`'s `reboot_on_failure` sends the
+  phone to the bootloader ~10 s into second stage (the 10 s is init retrying to stat `misc`, which
+  ueventd never created). USB never enumerates, no panic, nothing in klog. Found with the ramoops
+  trick below, not the harness: the harness has no `/system`, so it never reaches `SetupCgroups`.
 
 Find the next floor item without a full boot, on the phone (slot b, test data disposable):
 
@@ -265,10 +273,30 @@ Find the next floor item without a full boot, on the phone (slot b, test data di
 4. Only then flash the real `boot.img` (+ `dtbo.img`, `vbmeta.img` from the same build) and
    normal-boot; `adb logcat -s NetBpfLoad:* LibBpfLoader:*` for the eBPF floor.
 
-No log survives a reboot on this device: every `reboot` is a PMIC hard reset (`PMIC@SID0
-Power-on reason: Triggered from Hard Reset and 'cold' boot`), DDR is power-cycled and
-pstore/ramoops comes up empty. `msm_poweroff.warm_reset=1` does not change it (TZ or the
-bootloader forces the hard reset with `androidboot.ramdump=disabled`). Use the harness above.
+**Getting the console log of a failed normal boot.** Every reboot here is a PMIC hard reset and
+the bootloader rewrites the primary ramoops region (`ramoops_mem`, 0xa1810000) on every boot — its
+own UEFI log lands there — so pstore is always empty after a normal-boot failure. The `klog`
+partition and the alt region get an AES-GCM copy of the console **only on a kernel panic**
+(`androidboot.init_fatal_panic=true` turns init fatals into panics; `ramoops-pull.sh` decrypts).
+A clean `reboot` (init's `reboot_on_failure`, `InitFatalReboot` without the panic flag) leaves
+nothing — except that the alt region (`alt_ramoops_mem`, 0xa1a10000) is untouched on a clean
+reboot. So swap the two phandles of the `ramoops` node in the dtbo entry the bootloader picks
+(`androidboot.dtbo_idx=8`, id 0x31e; `mkdtboimg dump`, `dtc -I dtb -O dts`, swap
+`memory-region`/`alt-memory-region`, byte-patch the two u32s back into `dtbo.img`), `fastboot flash
+dtbo_b`, normal-boot, then boot recovery and read `/sys/fs/pstore/console-ramoops-0`: the whole
+failed boot including init's last lines. Debug image only — with the regions swapped a real panic
+would overwrite the live ring. Restore the built `dtbo.img` afterwards.
+
+**Poking the slot-b system from recovery** (no `dmctl`/`lptools` in recovery): pull the first
+4 MiB of `system_b` (`super`), `lpdump` it on the host for the extent offsets, then
+`losetup -f -o <off> -S <size> /dev/block/by-name/system_b` and `mount -t ext4` — rw works, the
+images have no `shared_blocks`. That is how `apexd --bootstrap` was run chrooted into slot b
+(`setprop apexd.config.use_fiemap false` first: recovery's `ro.init.mnt_ns.count=1` would flip it
+into the mount-before-data path) and passed on this kernel, ruling apexd itself out.
+
+The harness in step 3 stops being useful once init gets past `selinux_setup`: recovery-mode init
+has no `/system`, so `SetupCgroups`, `apexd-bootstrap` and everything in `early-init` never run
+there. From that point on, use the ramoops trick.
 
 ### `vendor/google/bonito`
 
