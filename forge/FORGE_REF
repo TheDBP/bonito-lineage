@@ -2,6 +2,6 @@
 # Update with: ./forge/tools/sync-forge.sh [ref]
 url=https://github.com/TheDBP/rom-forge.git
 ref=main
-commit=bf3b0a7dfc9b718dbb33f71b947c18ce170c40d0
-subject=tools: bank the kernel bring-up debug set
-synced=2026-09-21T04:46:58Z
+commit=de9ad9a41fec255602d90fdd5e39b9b57436062f
+subject=options: build-env exports; bringup sets WITH_ADB_INSECURE through it
+synced=2026-09-21T13:40:20Z
