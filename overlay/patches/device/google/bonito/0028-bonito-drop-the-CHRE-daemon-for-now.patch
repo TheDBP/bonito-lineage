@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 12:29:00 -0400
+Subject: [PATCH] bonito: drop the CHRE daemon for now
+
+chre_daemon_msm never finishes init on this build: every fastrpc
+remote_handle_open against the SLPI returns 0xfffffffb, so it logs
+"Failed to send initial time sync message" / "failed to init the daemon"
+and exits non-zero. init restarts it 33 times in one boot, counts the
+5th bad exit before sys.boot_completed, and sets
+sys.init.updatable_crashing -- and apexd answers that by reverting and
+rebooting. Same boot-killing path as the camera provider in the previous
+commit; both have to go for a boot to complete.
+
+0021 dropped the HIDL context hub HAL and nothing replaced it, so no
+framework client is left for CHRE. Stop packaging the daemon until the
+DSP side is understood.
+
+---
+ device-lineage.mk | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/device-lineage.mk b/device-lineage.mk
+index 10a2fcb8..8888cd1d 100644
+--- a/device-lineage.mk
++++ b/device-lineage.mk
+@@ -65,9 +65,13 @@ PRODUCT_PACKAGES += \
+ 
+ # Build necessary packages for vendor
+ 
+-# CHRE
+-PRODUCT_PACKAGES += \
+-    chre_daemon_msm
++# CHRE. The daemon cannot reach the SLPI: every fastrpc remote_handle_open on the DSP fails, so
++# it logs "failed to init the daemon" and exits non-zero, 33 times per boot. init counts the 5th
++# exit before sys.boot_completed and sets sys.init.updatable_crashing, which makes apexd revert
++# and reboot. 0021 already dropped the context hub HAL, so nothing consumes CHRE anyway -- do not
++# ship the daemon until the DSP side works.
++#PRODUCT_PACKAGES += \
++#    chre_daemon_msm
+ 
+ # Display
+ $(call soong_config_set,qtidisplay,drmpp,true)
