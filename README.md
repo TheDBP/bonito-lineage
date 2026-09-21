@@ -219,6 +219,12 @@ patch is one build failure or one removed interface:
   (`/dev/qseecom`) and citadeld (`/dev/citadel0`) abort in a loop, no `avc:` anywhere, the phone
   sits on the Google logo with no USB. Found in `pmsg-ramoops-0` (the last boot's logcat), not in
   the console ring. Check any pre-T device tree for this before its first 24.0 boot.
+- **0025 include the Lineage libion sepolicy** — system/sepolicy `9b2d37dc2` (Android 17) dropped
+  `/dev/ion`'s file_contexts entry and every coredomain `ion_device` rule; the node is labeled
+  `device` and surfaceflinger/keymaster/gatekeeper get `avc: denied { read }` on open (gralloc,
+  Adreno and QSEECom all allocate through ION on 4.9). `device/lineage/sepolicy/libion/sepolicy.mk`
+  carries the removed rules; `BoardConfigLineage.mk` includes it. Rebuild `systemextimage
+  vendorimage` (file_contexts is system_ext; the vendor precompiled policy hashes it).
 
 ### `kernel/google/msm-4.9`
 

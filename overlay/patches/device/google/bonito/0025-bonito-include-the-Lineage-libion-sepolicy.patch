@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 08:56:31 -0400
+Subject: [PATCH] bonito: include the Lineage libion sepolicy
+
+system/sepolicy 9b2d37dc2 (Android 17) dropped the /dev/ion file_contexts
+entry and every coredomain ion_device rule. This kernel's gralloc, Adreno
+and QSEECom all allocate through /dev/ion, so with the node labeled
+`device` surfaceflinger, keymaster and gatekeeper abort on open (avc
+denied read, tclass chr_file). device/lineage/sepolicy/libion carries the
+removed rules; include it the way the other legacy Lineage devices do.
+---
+ BoardConfigLineage.mk | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/BoardConfigLineage.mk b/BoardConfigLineage.mk
+index fcb5ecfa..7baf7ada 100644
+--- a/BoardConfigLineage.mk
++++ b/BoardConfigLineage.mk
+@@ -45,6 +45,8 @@ endif
+ # SELinux
+ BOARD_SEPOLICY_DIRS += device/google/bonito/sepolicy-lineage/dynamic
+ BOARD_SEPOLICY_DIRS += device/google/bonito/sepolicy-lineage/vendor
++# ION labeling and coredomain rules left system/sepolicy in Android 17 (9b2d37dc2); this kernel has no dmabuf heaps
++include device/lineage/sepolicy/libion/sepolicy.mk
+ 
+ # Verified Boot
+ ifneq (,$(AVB_CUSTOM_KEY_PATH))
