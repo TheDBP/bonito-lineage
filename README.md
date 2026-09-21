@@ -293,7 +293,10 @@ partition and the alt region get an AES-GCM copy of the console **only on a kern
 (`androidboot.init_fatal_panic=true` turns init fatals into panics; `ramoops-pull.sh` decrypts).
 A clean `reboot` (init's `reboot_on_failure`, `InitFatalReboot` without the panic flag) leaves
 nothing — except that the alt region (`alt_ramoops_mem`, 0xa1a10000) is untouched on a clean
-reboot. So swap the two phandles of the `ramoops` node in the dtbo entry the bootloader picks
+`reboot` (not on `reboot,recovery`: the bootloader clears it on that reason too, verified with
+`adb reboot recovery` from a recovery whose ring had content; `msm_poweroff.warm_reset=1` on the
+cmdline changes nothing). So init's `reboot_into_recovery` paths (`enablefilecrypto_failed`,
+`init_user0_failed`, `fs_mgr_mount_all`) leave no log at all; read the source instead. So swap the two phandles of the `ramoops` node in the dtbo entry the bootloader picks
 (`androidboot.dtbo_idx=8`, id 0x31e; `mkdtboimg dump`, `dtc -I dtb -O dts`, swap
 `memory-region`/`alt-memory-region`, byte-patch the two u32s back into `dtbo.img`), `fastboot flash
 dtbo_b`, normal-boot, then boot recovery and read `/sys/fs/pstore/console-ramoops-0`: the whole
@@ -328,6 +331,23 @@ The blob repo (TheMuppets, lineage-22.2 branch — there is no 24.0 one). The pa
   staged `out/target/product/bonito/{system,system_ext,product}` libs plus
   `apex/com.android.runtime/<arch>/bionic` and `apex/*/<arch>` (strip `@VERSION`). 14 platform
   blobs here; this was the only one with a miss.
+
+### `system/core`, `system/vold`
+
+One change, three reverts: the session-keyring path for fscrypt v1 keys on a kernel without
+`FS_IOC_ADD_ENCRYPTION_KEY` (5.4+; msm-4.9 has only the `fscrypt:`/`ext4:` keyring lookup in
+`fs/crypto/keyinfo.c`). Android 17 vold issues that ioctl unconditionally, it fails with ENOTTY,
+`vdc cryptfs enablefilecrypto` fails, and init reboots into recovery with
+`Reason: enablefilecrypto_failed` (no logcat line survives: the reboot is before adbd starts and
+the bootloader clears the alt ramoops region on a `reboot,recovery`).
+
+- **system/core 0001 Revert "Remove libkeyutils"** — the wrapper library both reverts below link.
+- **system/core 0002 Revert "init: remove session keyring workaround for old kernels"** — init
+  creates the session keyring and the `fscrypt` keyring in it before `installkey`.
+- **system/vold 0001 Revert "vold: remove session keyring workaround for old kernels"** — restores
+  `isFsKeyringSupported()` (probes the ioctl once) and the `add_key("logon", ...)` fallback for
+  v1 keys, plus the drop_caches eviction that goes with it. Rebased onto the wrapped-key changes
+  that landed after it.
 
 ### `packages/modules/Connectivity`
 
