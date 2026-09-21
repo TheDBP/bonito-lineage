@@ -1,21 +1,22 @@
-From 9104b95b3d611a6f468c1e55b2903994ff291382 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
-Date: Sat, 12 Sep 2026 14:15:15 -0400
+Date: Mon, 21 Sep 2026 10:44:59 -0400
 Subject: [PATCH] bonito/sargo: schedutil and powerhint tuning
 
 Longer down_rate_limit_us on both clusters so the governor stops dropping frequency
-between frames, a higher top-app schedtune boost, and powerhint floors raised to
-match. Aimed at interaction smoothness rather than benchmark peaks.
+between frames, and powerhint floors raised to match. Aimed at interaction smoothness
+rather than benchmark peaks. The rc's top-app schedtune.boost is left alone: libperfmgr
+resets that node to its powerhint default (10) on start, so an rc value never survives.
 ---
- init.hardware.rc | 6 +++---
+ init.hardware.rc | 4 ++--
  powerhint.json   | 7 ++++---
- 2 files changed, 7 insertions(+), 6 deletions(-)
+ 2 files changed, 6 insertions(+), 5 deletions(-)
 
 diff --git a/init.hardware.rc b/init.hardware.rc
-index a00b945..e48762f 100644
+index a00b945f..8d6557c1 100644
 --- a/init.hardware.rc
 +++ b/init.hardware.rc
-@@ -104,16 +104,16 @@ on init && property:vendor.skip.init=0
+@@ -104,12 +104,12 @@ on init && property:vendor.skip.init=0
      # configure governor settings for little cluster
      write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor schedutil
      write /sys/devices/system/cpu/cpu0/cpufreq/schedutil/up_rate_limit_us 500
@@ -30,13 +31,8 @@ index a00b945..e48762f 100644
  
      # set default schedTune value for foreground/top-app
      write /dev/stune/foreground/schedtune.prefer_idle 1
--    write /dev/stune/top-app/schedtune.boost 10
-+    write /dev/stune/top-app/schedtune.boost 20
-     write /dev/stune/top-app/schedtune.prefer_idle 1
- 
-     # set default schedTune value for camera-daemon
 diff --git a/powerhint.json b/powerhint.json
-index 15b72d3..d00037d 100644
+index 15b72d3b..d00037d3 100644
 --- a/powerhint.json
 +++ b/powerhint.json
 @@ -115,6 +115,7 @@

@@ -1,8 +1,7 @@
-From bd36ef8d02d7ea08ecb41d4aa9b6230d7ad9adb3 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
 Date: Sat, 12 Sep 2026 14:07:30 -0400
-Subject: [PATCH] bonito/sargo: tag the build so a custom image is
- identifiable
+Subject: [PATCH] bonito/sargo: tag the build so a custom image is identifiable
 
 Puts the build tag in the zip filename and ro.lineage.version
 (...-UNOFFICIAL-<tag>-bonito). Overridable via TURBO_BUILD_ID, which is how the
@@ -16,6 +15,7 @@ TARGET_UNOFFICIAL_BUILD_ID when it is included, so a later assignment is ignored
  2 files changed, 6 insertions(+)
 
 diff --git a/lineage_bonito.mk b/lineage_bonito.mk
+index 986587a4..4e49fa42 100644
 --- a/lineage_bonito.mk
 +++ b/lineage_bonito.mk
 @@ -4,6 +4,9 @@
@@ -29,6 +29,7 @@ diff --git a/lineage_bonito.mk b/lineage_bonito.mk
  $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
  
 diff --git a/lineage_sargo.mk b/lineage_sargo.mk
+index b9697106..120a0707 100644
 --- a/lineage_sargo.mk
 +++ b/lineage_sargo.mk
 @@ -4,6 +4,9 @@

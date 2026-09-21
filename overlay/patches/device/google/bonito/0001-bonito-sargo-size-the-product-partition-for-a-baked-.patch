@@ -1,8 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
 Date: Sun, 20 Sep 2026 15:35:43 -0400
-Subject: [PATCH] bonito/sargo: size the partitions for what the build
- bakes in
+Subject: [PATCH] bonito/sargo: size the partitions for what the build bakes in
 
 Lineage reserves space in product (1000 MiB), system and system_ext (90 MiB each) so
 GApps can be flashed after install; check_partition_sizes counts it against the

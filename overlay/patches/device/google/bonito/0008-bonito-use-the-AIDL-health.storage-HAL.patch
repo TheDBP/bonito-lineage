@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
 Date: Sat, 19 Sep 2026 20:44:45 -0400
-Subject: [PATCH 2/3] bonito: use the AIDL health.storage HAL
+Subject: [PATCH] bonito: use the AIDL health.storage HAL
 
 lineage-24.0 deleted hardware/interfaces/health/storage/1.0. The AIDL
 default service is the same UFS/eMMC garbage-collect implementation, is
@@ -12,7 +12,7 @@ runs in the same domain the device policy already extends.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/device.mk b/device.mk
-index 61a4cd75..c8457d97 100644
+index c48215d0..27a44270 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -336,7 +336,7 @@ PRODUCT_PACKAGES += \

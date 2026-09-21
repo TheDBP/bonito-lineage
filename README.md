@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-31 patches across 7 upstream projects, applied at build time from
+41 patches across 9 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -151,8 +151,9 @@ Carried forward from 22.2 unbuilt (the device tree is pinned to its 22.2 branch,
   vendor `.img` files (content + reservation + ~4% ext4 overhead for any not built yet);
   `check_partition_sizes` reads those, not `du`.
 - **0002 schedutil and powerhint tuning** — longer `down_rate_limit_us` on both clusters so the
-  governor stops dropping frequency between frames, a higher top-app schedtune boost, powerhint
-  floors raised to match. Smoothness, not benchmark peaks.
+  governor stops dropping frequency between frames, powerhint floors raised to match. Smoothness,
+  not benchmark peaks. Don't tune `top-app/schedtune.boost` in the rc: libperfmgr resets that
+  node to its powerhint default on start (`ResetOnInit`), so an rc value never survives.
 - **0003 do not enforce VINTF kernel requirements on OTA** —
   `PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false`; the shipped kernel does not declare
   everything the OTA-time check expects, and the check refuses the package rather than warning.
@@ -331,6 +332,28 @@ The blob repo (TheMuppets, lineage-22.2 branch — there is no 24.0 one). The pa
   staged `out/target/product/bonito/{system,system_ext,product}` libs plus
   `apex/com.android.runtime/<arch>/bionic` and `apex/*/<arch>` (strip `@VERSION`). 14 platform
   blobs here; this was the only one with a miss.
+
+### `frameworks/hardware/interfaces`
+
+- **0001 restore `android.frameworks.stats@1.0`** — partial revert of the HIDL stats removal:
+  the interface library only, no client or VTS. The fpc fingerprint blob
+  (`android.hardware.biometrics.fingerprint@2.1-service.fpc`, `vendor/google/bonito/Android.bp`)
+  links it at load time; nothing serves IStats, `getService()` returns null and the blob carries
+  on. Needed for as long as that blob is.
+
+### `hardware/google/pixel`
+
+- **0001 revert "pixel: Drop powerstats HAL"** — restores `powerstats/` (libpixelpowerstats) so
+  `device/google/bonito/powerstats/Android.bp` resolves. Staging only: device 0016 stops
+  installing the binary, so nothing built from it ships. Goes away with 0016 when power.stats
+  comes back as AIDL.
+
+### `hardware/qcom/sdm845/display`
+
+- **0001 drop the HDR HBM hook in hwc2** — `hardware/google/interfaces/light/1.0` is gone on 24.0,
+  so hwcomposer.qcom no longer linked. The hook toggled panel high-brightness mode through the
+  Google light HAL's `setHbm()` when an HDR layer covered more than half the screen; the AIDL
+  lights HAL has no such call. Backlight brightness is unaffected (sysfs write).
 
 ### `system/core`, `system/vold`
 

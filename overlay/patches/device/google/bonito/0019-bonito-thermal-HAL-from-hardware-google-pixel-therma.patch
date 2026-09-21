@@ -13,7 +13,7 @@ copy of the 22.2 gs-common dir under sepolicy/vendor/google/thermal.
 Without it hardware/google/pixel-sepolicy/power-libperfmgr fails checkpolicy
 on thermal_link_device and vendor_thermal_prop. Same as coral 0d401e37.
 ---
- device.mk                                       | 10 +++++++---
+ device.mk                                       |  7 +++++++
  sepolicy/bonito-sepolicy.mk                     |  3 +++
  sepolicy/vendor/google/thermal/file.te          |  2 ++
  sepolicy/vendor/google/thermal/file_contexts    |  6 ++++++
@@ -25,7 +25,7 @@ on thermal_link_device and vendor_thermal_prop. Same as coral 0d401e37.
  sepolicy/vendor/google/thermal/property.te      |  2 ++
  .../vendor/google/thermal/property_contexts     |  1 +
  sepolicy/vendor/google/thermal/vendor_init.te   |  3 +++
- 12 files changed, 79 insertions(+), 3 deletions(-)
+ 12 files changed, 79 insertions(+)
  create mode 100644 sepolicy/vendor/google/thermal/file.te
  create mode 100644 sepolicy/vendor/google/thermal/file_contexts
  create mode 100644 sepolicy/vendor/google/thermal/genfs_contexts
@@ -38,7 +38,7 @@ on thermal_link_device and vendor_thermal_prop. Same as coral 0d401e37.
  create mode 100644 sepolicy/vendor/google/thermal/vendor_init.te
 
 diff --git a/device.mk b/device.mk
-index 76c748b4..773fabd6 100644
+index 156b67d0..773fabd6 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -25,6 +25,7 @@ PRODUCT_SOONG_NAMESPACES += \
@@ -49,13 +49,10 @@ index 76c748b4..773fabd6 100644
      hardware/google/pixel/usb \
      hardware/qcom/audio \
      hardware/qcom/sdm845/display \
-@@ -723,9 +724,12 @@ PRODUCT_VENDOR_PROPERTIES += ro.soc.model=SDM670
+@@ -723,6 +724,12 @@ PRODUCT_VENDOR_PROPERTIES += ro.soc.model=SDM670
  # HAL went with it. No haptics until it is vendored back from the 22.2 tree, which still has it.
  #include hardware/google/pixel/vibrator/drv2624/device.mk
  include hardware/google/pixel/mm/device_legacy.mk
--# lineage-24.0: gs-common's thermal/ is empty at the branch this device pins, so there is no
--# thermal_hal to include. Thermal falls back to whatever the blobs provide.
--#include device/google/gs-common/thermal/thermal_hal/device.mk
 +# Thermal. gs-common's thermal_hal/device.mk is gone on lineage-24.0; it only ever packaged the
 +# HAL from hardware/google/pixel/thermal and named its sepolicy dir, both now done here (the
 +# sepolicy copied verbatim to sepolicy/vendor/google/thermal, as coral did).

@@ -1,8 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
 Date: Sun, 20 Sep 2026 09:35:42 -0400
-Subject: [PATCH] bonito: switch the Bluetooth audio HAL from HIDL 2.0 to
- AIDL
+Subject: [PATCH] bonito: switch the Bluetooth audio HAL from HIDL 2.0 to AIDL
 
 The HIDL android.hardware.bluetooth.audio interfaces are in no framework
 compatibility matrix from level 7 up, so the 2.0 instance in the device
@@ -20,7 +19,7 @@ manifest entry goes. Same change as coral on lineage-24.0.
  2 files changed, 1 insertion(+), 10 deletions(-)
 
 diff --git a/device.mk b/device.mk
-index 02522087..f633a8cc 100644
+index 35bf8f39..3a4b3a20 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -490,7 +490,7 @@ PRODUCT_PACKAGES += \

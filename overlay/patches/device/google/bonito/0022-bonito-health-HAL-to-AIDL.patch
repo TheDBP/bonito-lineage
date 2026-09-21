@@ -423,7 +423,7 @@ index 00000000..14828d45
 +    </hal>
 +</manifest>
 diff --git a/init.hardware.rc b/init.hardware.rc
-index e48762f7..dc110c1c 100644
+index 8d6557c1..afa2788d 100644
 --- a/init.hardware.rc
 +++ b/init.hardware.rc
 @@ -40,9 +40,9 @@ on property:init.svc.vendor.charger=running

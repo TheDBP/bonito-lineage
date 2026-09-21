@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
-Date: Sat, 19 Sep 2026 20:01:01 -0400
+Date: Mon, 21 Sep 2026 10:44:59 -0400
 Subject: [PATCH] bonito/sargo: drop the includes lineage-24.0 no longer has
 
 This device tree is 22.2 and the platform is 24.0, so three includes point at files that no longer
@@ -11,22 +11,23 @@ exist and product config stops before lunch:
 - hardware/google/pixel/PixelLogger -- gone from the same repo. A logging tool, not a HAL.
 - device/google/gs-common/thermal/thermal_hal -- gs-common's thermal/ is empty at the pinned branch.
 
-Commented rather than deleted, with the reason, because these are things to restore rather than
-things that were wrong: the vibrator HAL can be vendored from the 22.2 tree, and thermal wants a
-gs-common pin that still carries it. The first question is whether a 22.2 device tree configures and
-compiles against Android 17 at all, and none of these affects that.
+The vibrator and PixelLogger includes are commented rather than deleted, with the reason, because
+they are things to restore rather than things that were wrong: the vibrator HAL can be vendored
+from the 22.2 tree. The thermal include is deleted outright; what it packaged is put back by the
+thermal HAL patch later in this series. The first question is whether a 22.2 device tree configures
+and compiles against Android 17 at all, and none of these affects that.
 
 The one other missing include, vendor/google_devices/bonito/proprietary/BoardConfigVendor.mk, is a
 `-include` and absent on 22.2 as well -- it has never been there and does not fail.
 ---
- device.mk | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ device.mk | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
 diff --git a/device.mk b/device.mk
-index 4d697a25..4b40ab46 100644
+index 4d697a25..0fe8bec1 100644
 --- a/device.mk
 +++ b/device.mk
-@@ -719,9 +719,13 @@ PRODUCT_PRODUCT_PROPERTIES += \
+@@ -719,9 +719,10 @@ PRODUCT_PRODUCT_PROPERTIES += \
  PRODUCT_VENDOR_PROPERTIES += ro.soc.manufacturer=Qualcomm
  PRODUCT_VENDOR_PROPERTIES += ro.soc.model=SDM670
  
@@ -36,13 +37,10 @@ index 4d697a25..4b40ab46 100644
 +#include hardware/google/pixel/vibrator/drv2624/device.mk
  include hardware/google/pixel/mm/device_legacy.mk
 -include device/google/gs-common/thermal/thermal_hal/device.mk
-+# lineage-24.0: gs-common's thermal/ is empty at the branch this device pins, so there is no
-+# thermal_hal to include. Thermal falls back to whatever the blobs provide.
-+#include device/google/gs-common/thermal/thermal_hal/device.mk
  
  # Citadel
  include hardware/google/pixel/citadel/citadel.mk
-@@ -730,4 +734,6 @@ include hardware/google/pixel/citadel/citadel.mk
+@@ -730,4 +731,6 @@ include hardware/google/pixel/citadel/citadel.mk
  -include hardware/google/pixel/power-libperfmgr/aidl/device.mk
  
  # Pixel Logger
@@ -50,6 +48,3 @@ index 4d697a25..4b40ab46 100644
 +# lineage-24.0: PixelLogger is gone from hardware/google/pixel too. A logging tool, not a HAL --
 +# nothing depends on it to boot.
 +#include hardware/google/pixel/PixelLogger/PixelLogger.mk
--- 
-2.53.0
-

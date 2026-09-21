@@ -1,8 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
 Date: Sat, 19 Sep 2026 20:44:45 -0400
-Subject: [PATCH 3/3] bonito: replace the HIDL lights stack with the LineageOS
- AIDL lights HAL
+Subject: [PATCH] bonito: replace the HIDL lights stack with the LineageOS AIDL
+ lights HAL
 
 lineage-24.0 deleted hardware/interfaces/light/2.0 and
 hardware/google/interfaces/light/1.0, taking hardware.google.light@1.0-service
@@ -26,7 +26,7 @@ wrapper exposed.
  5 files changed, 2 insertions(+), 30 deletions(-)
 
 diff --git a/device.mk b/device.mk
-index c8457d97..f7221959 100644
+index 27a44270..fefd5c93 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -340,8 +340,7 @@ PRODUCT_PACKAGES += \

@@ -17,7 +17,7 @@ a later AIDL power.stats port (coral did the same, then ported later).
  2 files changed, 13 deletions(-)
 
 diff --git a/device.mk b/device.mk
-index f633a8cc..76c748b4 100644
+index 3a4b3a20..156b67d0 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -206,10 +206,6 @@ PRODUCT_COPY_FILES += \

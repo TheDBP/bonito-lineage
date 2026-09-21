@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
 Date: Sat, 19 Sep 2026 20:42:58 -0400
-Subject: [PATCH 1/3] bonito: convert the dumpstate HAL from HIDL 1.1 to AIDL
+Subject: [PATCH] bonito: convert the dumpstate HAL from HIDL 1.1 to AIDL
 
 lineage-24.0 deleted hardware/interfaces/dumpstate/1.0 and 1.1; only the
 AIDL interface remains. Soong analyses every Android.bp regardless of
@@ -30,7 +30,7 @@ vintf fragment.
  delete mode 100644 dumpstate/android.hardware.dumpstate@1.1-service.bonito.rc
 
 diff --git a/device.mk b/device.mk
-index d68e831a..61a4cd75 100644
+index acf01159..c48215d0 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -561,7 +561,7 @@ PRODUCT_PACKAGES += \

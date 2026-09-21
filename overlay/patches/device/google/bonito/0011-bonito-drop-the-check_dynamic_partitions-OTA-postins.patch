@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
 Date: Sat, 19 Sep 2026 20:52:46 -0400
-Subject: [PATCH 2/2] bonito: drop the check_dynamic_partitions OTA postinstall
+Subject: [PATCH] bonito: drop the check_dynamic_partitions OTA postinstall
 
 hardware/google/pixel removed the script (bf2744d6 "pixel: Drop no longer
 used check_dynamic_partitions script"). It guarded the one-time
