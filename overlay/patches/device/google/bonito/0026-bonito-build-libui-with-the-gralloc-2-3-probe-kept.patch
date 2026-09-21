@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 11:04:20 -0400
+Subject: [PATCH] bonito: build libui with the gralloc 2/3 probe kept
+
+The display stack is HIDL mapper@2.1 (passthrough,
+android.hardware.graphics.mapper@2.0-impl-qti-display) and
+allocator@2.0. libui on Android 17 gates Gralloc2Mapper/Gralloc3Mapper
+behind require_gralloc4_or_newer, ENABLED READ_ONLY in the cp2a release
+config, when android_get_device_api_level() (ro.build.version.sdk, 37)
+is >= 36. GraphicBufferMapper() then finds no mapper 5 or 4 and
+LOG_ALWAYS_FATALs "gralloc-mapper is missing"; composer@2.2-service,
+surfaceflinger and the camera provider all die on it, in a loop.
+
+Lineage's libui keeps the old probe behind soong config
+libui.legacy_gralloc (frameworks/native c7d417fbe1, "libui: Restore
+support for gralloc 2/3"). Set it. Both the system and the vendor
+copy of libui are built from the same module, so one switch covers
+surfaceflinger and the vendor HALs.
+
+---
+ device-lineage.mk | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/device-lineage.mk b/device-lineage.mk
+index 40639a63..10a2fcb8 100644
+--- a/device-lineage.mk
++++ b/device-lineage.mk
+@@ -42,6 +42,12 @@ $(call soong_config_set,lineage_health,charging_control_charging_path,/sys/class
+ $(call soong_config_set,lineage_health,charging_control_charging_enabled,0)
+ $(call soong_config_set,lineage_health,charging_control_charging_disabled,1)
+ 
++# Gralloc. The display stack is HIDL mapper@2.1 / allocator@2.0; libui on Android 17 refuses
++# gralloc 2/3 on sdk >= 36 (flag require_gralloc4_or_newer, fixed ENABLED in cp2a) and aborts
++# every mapper user with "gralloc-mapper is missing". Lineage's libui keeps the old probe
++# behind this switch (frameworks/native c7d417fbe1).
++$(call soong_config_set_bool,libui,legacy_gralloc,true)
++
+ # LiveDisplay
+ PRODUCT_PACKAGES += \
+     vendor.lineage.livedisplay-service.sdm
