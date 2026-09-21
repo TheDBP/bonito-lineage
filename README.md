@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-41 patches across 9 upstream projects, applied at build time from
+40 patches across 8 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -174,7 +174,9 @@ patch is one build failure or one removed interface:
   `Cannot find framework matrix at FCM version 5`. Coral/sunfish made the same move upstream.
 - **0015 Bluetooth audio HIDL 2.0 → AIDL** and **0016 drop power.stats@1.0** — neither HIDL package
   is in any matrix ≥ 7, so `checkUnusedHals` rejects the instances. The AIDL BT audio impl brings
-  its own VINTF fragment; power.stats comes back later as AIDL.
+  its own VINTF fragment. 0016 also deletes `powerstats/` (the service source): it was the only
+  user of `hardware/google/pixel/powerstats`, which 24.0 removed, and carrying that back for a
+  binary that does not ship is dead weight. An AIDL power.stats HAL is a fresh patch when written.
 - **0017 drop the PixelLogger sepolicy** — 0005 removed `PixelLogger.mk`, which was what put
   `hardware/google/pixel-sepolicy/logger_app` (the `logger_app` type) on the sepolicy dirs; the
   device's own `logger_app.te` then fails checkpolicy with `unknown type`. Same as coral `9e807a47`.
@@ -340,13 +342,6 @@ The blob repo (TheMuppets, lineage-22.2 branch — there is no 24.0 one). The pa
   (`android.hardware.biometrics.fingerprint@2.1-service.fpc`, `vendor/google/bonito/Android.bp`)
   links it at load time; nothing serves IStats, `getService()` returns null and the blob carries
   on. Needed for as long as that blob is.
-
-### `hardware/google/pixel`
-
-- **0001 revert "pixel: Drop powerstats HAL"** — restores `powerstats/` (libpixelpowerstats) so
-  `device/google/bonito/powerstats/Android.bp` resolves. Staging only: device 0016 stops
-  installing the binary, so nothing built from it ships. Goes away with 0016 when power.stats
-  comes back as AIDL.
 
 ### `hardware/qcom/sdm845/display`
 
