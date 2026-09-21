@@ -337,8 +337,24 @@ The blob repo (TheMuppets, lineage-22.2 branch — there is no 24.0 one). The pa
   adbd never starts; without it init would hang at `wait_for_prop bpf.progs_loaded 1` instead. The
   patch comments out the reboot and starts `netd1shot`/`netd` from `on property:bpf.progs_loaded=1`,
   so on the failing kernel there is no netd (and no network, no system_server) but adbd and logcat
-  run. `adb logcat -s NetBpfLoad:* LibBpfLoader:*` shows the floor message. Drop it once the kernel
-  passes (eBPF backport + `ro.bpf.kver_override`).
+  run. `adb logcat -s NetBpfLoad:* LibBpfLoader:*` shows the floor message. Drop it once 0002-0004
+  are verified on hardware.
+- **0002 netbpfload: tolerate a 4.9 kernel** — the U/V/25Q2/25Q4 kernel floors in `NetBpfLoad.cpp`
+  are hard returns on 24.0 (22.2 warned); back to warnings. Gate the `bpf_jit_kallsyms` write on
+  4.11 (22.2's gate) and the root-only `bpfGetNext{Prog,Map}Id` sanity check on 4.13 (the commands
+  do not exist before that; the 4.9 branch of that `if` is documented as "nothing"). Have
+  `isMapTypeSupported` skip `LRU_HASH` below 4.10: `netd.o` creates two (`local_net_note_op_cache_map`,
+  `loopback_access_cache_map`) unconditionally, and their only users are 5.10+ programs. Do not use
+  `ro.bpf.kver_override`: it selects program variants the kernel cannot load.
+- **0003 netd.c: let the 4.9 stats programs load on any API level** — the only ingress/egress
+  `stats` variant for kernel 4.9 is `stats$4_9_t`, loader range `[T, V)`; on 25Q2+ nothing is pinned
+  at `netd_shared/prog_netd_{ingress,egress}_stats` and netd's `BpfHandler::init` aborts on ENOENT.
+  Every other variant starts at 4.19, so `[T, MAXAPI)` overlaps nothing.
+- **0004 BpfHandler: warn instead of failing on a kernel below 5.4** — the V/25Q2 floors in
+  `BpfHandler.cpp` become an `abort()` in `NetdUpdatable`; the rest of `init` is kernel-gated.
+  Verifier acceptance of the `$4_9` programs on this kernel is not proven statically
+  (`.scratch` preflight loaded the skfilter/schedact/schedcls ones); rebuilding Connectivity needs
+  `system.img` (the tethering apex lives in `/system/apex`).
 
 Preview checkpolicy errors without a build: the failing run leaves
 `out/soong/.intermediates/system/sepolicy/vendor_sepolicy.conf/.../vendor_sepolicy.conf`; loop
