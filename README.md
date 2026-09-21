@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-29 patches across 7 upstream projects, applied at build time from
+31 patches across 7 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -223,6 +223,16 @@ comes from. What Android 17 userspace needs from the kernel, in the order it hit
   its arc4random state and aborts on failure, so on plain 4.9 *every* process dies in libc init —
   `init` first — and the device loops at the Google logo with nothing on USB. Takes the
   `VM_ARCH_2` bit as upstream did; x86 `VM_MPX` moves to a high arch bit (not built here).
+- **0002 Revert "selinux: Android kernel compatibility with M userspace"** — Android-only
+  `099f006be6e0` ("NOT intended for new Android devices"). Its shim treats any xperms entry whose
+  type byte is not 1/2 as an M-format policy and misparses everything after it. Android 15+ policy
+  has `allowxperm ... nlmsg` rules, which libsepol writes as type 3 (`AVTAB_XPERMS_NLMSG`), so
+  `init selinux_setup` died with `SELinux: avtab: invalid type or class` → `InitFatalReboot` →
+  bootloader. Upstream 4.9 stores the byte and loads the policy.
+- **0003 selinux: ignore unknown extended permission types instead of BUG()** — companion to
+  0002: `services_compute_xperms_decision()` has `BUG()` for type 3, and it is reachable (ioctl
+  xperms and nlmsg xperms share the `(domain, self, netlink_route_socket)` key). No netlink xperm
+  hook exists in 4.9, so the rules are inert; skip them, warn once.
 
 Find the next floor item without a full boot, on the phone (slot b, test data disposable):
 
@@ -235,14 +245,30 @@ Find the next floor item without a full boot, on the phone (slot b, test data di
    `fastboot boot <img>` does a *normal* boot, so neither is usable. Recovery-mode boot failures
    bounce to the bootloader without touching the slot retry count; normal-boot failures burn one
    each (6 → unbootable). Do not normal-boot slot b until the harness passes.
-3. In recovery: `adb root`; push the 24.0 ramdisk's `system/` tree to `/tmp/rd24` on the phone (its
-   own tmpfs) and run `adb shell chroot /tmp/rd24 /system/bin/toybox uname -a`. The first fatal is
-   the next kernel gap (this is how 0001 was found: `arc4random data MADV_WIPEONFORK failed:
-   Invalid argument`). The 22.2 ramdisk boots because bionic 15 has no such requirement.
+   `fastboot --set-active=<slot>` resets that slot's retry count and clears `unbootable`; a `misc`
+   BCB left by a failed recovery request redirects the next `reboot fastboot` into recovery.
+3. In recovery: `adb root`; push the **whole** 24.0 ramdisk (cpio-extract, `chown -R 0:0`) to
+   `/tmp/rd24` on the phone (its own tmpfs, lost on reboot). Then run the real init as PID 1 of a
+   throwaway PID namespace — `reboot(2)` from a non-root pidns only kills that namespace, so
+   `InitFatalReboot` is harmless and the message stays in the live kernel log:
+
+       adb shell 'dmesg -w' > init24-kmsg.log &
+       adb shell 'timeout -s KILL 20 toybox unshare -f -p -m chroot /tmp/rd24 /init'
+
+   It runs first stage → `selinux_setup` → second stage on the 24.0 ramdisk against the live
+   kernel (recovery mode: no first-stage mount, so `super` is untouched). Read the `init:` lines;
+   the first FATAL is the next kernel gap. This is how 0002/0003 were found. For the earlier,
+   pre-init floor (bionic itself) `chroot /tmp/rd24 /system/bin/toybox uname -a` is enough — that
+   is how 0001 was found (`arc4random data MADV_WIPEONFORK failed: Invalid argument`). Stop the
+   harness before second stage starts services if adb matters: 24.0 `adbd` would reconfigure the
+   USB gadget under the running recovery.
 4. Only then flash the real `boot.img` (+ `dtbo.img`, `vbmeta.img` from the same build) and
    normal-boot; `adb logcat -s NetBpfLoad:* LibBpfLoader:*` for the eBPF floor.
 
-pstore/console-ramoops is empty on this kernel even after clean boots; don't wait on it.
+No log survives a reboot on this device: every `reboot` is a PMIC hard reset (`PMIC@SID0
+Power-on reason: Triggered from Hard Reset and 'cold' boot`), DDR is power-cycled and
+pstore/ramoops comes up empty. `msm_poweroff.warm_reset=1` does not change it (TZ or the
+bootloader forces the hard reset with `androidboot.ramdump=disabled`). Use the harness above.
 
 ### `vendor/google/bonito`
 

@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 21:53:38 -0400
+Subject: [PATCH] selinux: ignore unknown extended permission types instead of
+ BUG()
+
+libsepol >= 3.7 emits AVTAB_XPERMS_NLMSG (3) for 'allowxperm ... nlmsg'
+rules; Android 15+ policy carries them on the netlink socket classes.
+The avtab reader stores the type without looking at it, but
+services_compute_xperms_decision() hits BUG() on anything other than
+IOCTLFUNCTION/IOCTLDRIVER.
+
+That path is reachable: 'allowxperm domain self:socket_class_set ioctl
+unpriv_sock_ioctls' puts IOCTLFUNCTION nodes on the same
+(source, target, netlink_route_socket) key as the NLMSG nodes, so the
+first ioctl on a route socket walks onto an NLMSG node and oopses.
+
+There is no netlink extended-permission hook in this kernel, so such a
+rule can never apply to an ioctl decision.  Skip it (warn once) instead,
+which is what any pre-6.13 upstream kernel effectively does.
+---
+ security/selinux/ss/avtab.h    | 1 +
+ security/selinux/ss/services.c | 9 ++++++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/security/selinux/ss/avtab.h b/security/selinux/ss/avtab.h
+index 1778ce468084..366dd2203fb4 100644
+--- a/security/selinux/ss/avtab.h
++++ b/security/selinux/ss/avtab.h
+@@ -58,6 +58,7 @@ struct avtab_extended_perms {
+ /* These are not flags. All 256 values may be used */
+ #define AVTAB_XPERMS_IOCTLFUNCTION	0x01
+ #define AVTAB_XPERMS_IOCTLDRIVER	0x02
++#define AVTAB_XPERMS_NLMSG		0x03
+ 	/* extension of the avtab_key specified */
+ 	u8 specified; /* ioctl, netfilter, ... */
+ 	/*
+diff --git a/security/selinux/ss/services.c b/security/selinux/ss/services.c
+index 121b5cfe2d20..ad55c2ee05ef 100644
+--- a/security/selinux/ss/services.c
++++ b/security/selinux/ss/services.c
+@@ -967,7 +967,14 @@ void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
+ 					xpermd->driver))
+ 			return;
+ 	} else {
+-		BUG();
++		/*
++		 * AVTAB_XPERMS_NLMSG or something newer.  This kernel has no
++		 * netlink extended permission hook, so the rule cannot apply
++		 * to an ioctl decision; skip it instead of oopsing.
++		 */
++		pr_warn_once("SELinux: unknown extended permission type %u ignored\n",
++			     node->datum.u.xperms->specified);
++		return;
+ 	}
+ 
+ 	if (node->key.specified == AVTAB_XPERMS_ALLOWED) {
