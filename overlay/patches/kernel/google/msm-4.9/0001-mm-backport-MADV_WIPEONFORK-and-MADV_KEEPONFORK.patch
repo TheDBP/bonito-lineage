@@ -1,0 +1,184 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 20:35:29 -0400
+Subject: [PATCH] mm: backport MADV_WIPEONFORK and MADV_KEEPONFORK
+
+Backport of Linux 4.14 commit d2cd9ede6e19 ("mm,fork: introduce
+MADV_WIPEONFORK") to msm-4.9.
+
+Android 17 bionic (upstream-openbsd/android/include/arc4random.h) calls
+madvise(MADV_WIPEONFORK) on the arc4random state buffer and treats a
+failure as fatal, so on a 4.9 kernel every process aborts during libc
+initialisation with
+
+  arc4random data MADV_WIPEONFORK failed: Invalid argument
+
+init included, which leaves the device in a panic loop before the boot
+animation.
+
+MADV_WIPEONFORK marks an anonymous private mapping so that the child of
+a fork() sees zero-filled pages instead of a copy; MADV_KEEPONFORK
+clears the mark. The flag takes the VM_ARCH_2 bit as upstream did; the
+only VM_ARCH_2 user (x86 VM_MPX) moves to a high arch bit and is a no-op
+without CONFIG_X86_INTEL_MPX. Also exports the flag as "wf" in
+/proc/<pid>/smaps and as "wipeonfork" in the mm tracepoints.
+---
+ fs/proc/task_mmu.c                     |  1 +
+ include/linux/mm.h                     | 10 +++++++---
+ include/trace/events/mmflags.h         |  8 +-------
+ include/uapi/asm-generic/mman-common.h |  3 +++
+ kernel/fork.c                          | 10 ++++++++--
+ mm/madvise.c                           | 13 +++++++++++++
+ 6 files changed, 33 insertions(+), 12 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index f4a77817ad74..85827a31530e 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -725,6 +725,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+ 		[ilog2(VM_NORESERVE)]	= "nr",
+ 		[ilog2(VM_HUGETLB)]	= "ht",
+ 		[ilog2(VM_ARCH_1)]	= "ar",
++		[ilog2(VM_WIPEONFORK)]	= "wf",
+ 		[ilog2(VM_DONTDUMP)]	= "dd",
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+ 		[ilog2(VM_SOFTDIRTY)]	= "sd",
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 2e2807ed281c..488047ee6fe0 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -188,7 +188,7 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
+ #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
+ #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
+-#define VM_ARCH_2	0x02000000
++#define VM_WIPEONFORK	0x02000000	/* Wipe on fork */
+ #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
+ 
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+@@ -207,10 +207,12 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
+ #define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
+ #define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_4	36	/* bit only usable on 64-bit architectures */
+ #define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
+ #define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
+ #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
+ #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
++#define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
+ #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
+ 
+ #if defined(CONFIG_X86)
+@@ -234,9 +236,11 @@ extern unsigned int kobjsize(const void *objp);
+ # define VM_MAPPED_COPY	VM_ARCH_1	/* T if mapped copy of data (nommu mmap) */
+ #endif
+ 
+-#if defined(CONFIG_X86)
++#if defined(CONFIG_X86_INTEL_MPX)
+ /* MPX specific bounds table or bounds directory */
+-# define VM_MPX		VM_ARCH_2
++# define VM_MPX		VM_HIGH_ARCH_4
++#else
++# define VM_MPX		VM_NONE
+ #endif
+ 
+ #ifndef VM_GROWSUP
+diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+index 61d41f2543ac..62d0d9b7521a 100644
+--- a/include/trace/events/mmflags.h
++++ b/include/trace/events/mmflags.h
+@@ -125,12 +125,6 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
+ #define __VM_ARCH_SPECIFIC_1 {VM_ARCH_1,	"arch_1"	}
+ #endif
+ 
+-#if defined(CONFIG_X86)
+-#define __VM_ARCH_SPECIFIC_2 {VM_MPX,		"mpx"		}
+-#else
+-#define __VM_ARCH_SPECIFIC_2 {VM_ARCH_2,	"arch_2"	}
+-#endif
+-
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+ #define IF_HAVE_VM_SOFTDIRTY(flag,name) {flag, name },
+ #else
+@@ -162,7 +156,7 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
+ 	{VM_NORESERVE,			"noreserve"	},		\
+ 	{VM_HUGETLB,			"hugetlb"	},		\
+ 	__VM_ARCH_SPECIFIC_1				,		\
+-	__VM_ARCH_SPECIFIC_2				,		\
++	{VM_WIPEONFORK,			"wipeonfork"	},		\
+ 	{VM_DONTDUMP,			"dontdump"	},		\
+ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
+ 	{VM_MIXEDMAP,			"mixedmap"	},		\
+diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+index 8c27db0c5c08..49e2b1d78093 100644
+--- a/include/uapi/asm-generic/mman-common.h
++++ b/include/uapi/asm-generic/mman-common.h
+@@ -58,6 +58,9 @@
+ 					   overrides the coredump filter bits */
+ #define MADV_DODUMP	17		/* Clear the MADV_DONTDUMP flag */
+ 
++#define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
++#define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/kernel/fork.c b/kernel/fork.c
+index ba845cfab7be..565f2d10b9a3 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -630,7 +630,12 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
+ 		if (retval)
+ 			goto fail_nomem_policy;
+ 		tmp->vm_mm = mm;
+-		if (anon_vma_fork(tmp, mpnt))
++		if (tmp->vm_flags & VM_WIPEONFORK) {
++			/* VM_WIPEONFORK gets a clean slate in the child. */
++			tmp->anon_vma = NULL;
++			if (anon_vma_prepare(tmp))
++				goto fail_nomem_anon_vma_fork;
++		} else if (anon_vma_fork(tmp, mpnt))
+ 			goto fail_nomem_anon_vma_fork;
+ 		tmp->vm_flags &=
+ 			~(VM_LOCKED|VM_LOCKONFAULT|VM_UFFD_MISSING|VM_UFFD_WP);
+@@ -676,7 +681,8 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
+ 		rb_parent = &tmp->vm_rb;
+ 
+ 		mm->map_count++;
+-		retval = copy_page_range(mm, oldmm, mpnt);
++		if (!(tmp->vm_flags & VM_WIPEONFORK))
++			retval = copy_page_range(mm, oldmm, mpnt);
+ 
+ 		if (tmp->vm_ops && tmp->vm_ops->open)
+ 			tmp->vm_ops->open(tmp);
+diff --git a/mm/madvise.c b/mm/madvise.c
+index bf654aa6095b..9b18328ccba6 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -89,6 +89,17 @@ static long madvise_behavior(struct vm_area_struct *vma,
+ 		}
+ 		new_flags &= ~VM_DONTDUMP;
+ 		break;
++	case MADV_WIPEONFORK:
++		/* MADV_WIPEONFORK is only supported on anonymous memory. */
++		if (vma->vm_file || vma->vm_flags & VM_SHARED) {
++			error = -EINVAL;
++			goto out;
++		}
++		new_flags |= VM_WIPEONFORK;
++		break;
++	case MADV_KEEPONFORK:
++		new_flags &= ~VM_WIPEONFORK;
++		break;
+ 	case MADV_MERGEABLE:
+ 	case MADV_UNMERGEABLE:
+ 		error = ksm_madvise(vma, start, end, behavior, &new_flags);
+@@ -619,6 +630,8 @@ madvise_behavior_valid(int behavior)
+ #endif
+ 	case MADV_DONTDUMP:
+ 	case MADV_DODUMP:
++	case MADV_WIPEONFORK:
++	case MADV_KEEPONFORK:
+ 		return true;
+ 
+ 	default:

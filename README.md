@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-28 patches across 6 upstream projects, applied at build time from
+29 patches across 7 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -212,6 +212,37 @@ patch is one build failure or one removed interface:
   `PRODUCT_ENFORCE_SELINUX_TREBLE_LABELING := false` keeps the report in the log. Proper fix, later:
   move those app domains and lines to system_ext sepolicy. Not a preflight candidate — the test
   needs the built APKs and both precompiled policies.
+
+### `kernel/google/msm-4.9`
+
+Backports only; there is no newer kernel for this SoC. Each patch names the upstream commit it
+comes from. What Android 17 userspace needs from the kernel, in the order it hits it:
+
+- **0001 mm: backport MADV_WIPEONFORK and MADV_KEEPONFORK** — upstream 4.14 `d2cd9ede6e19`.
+  Bionic 17 (`upstream-openbsd/android/include/arc4random.h`) calls `madvise(MADV_WIPEONFORK)` on
+  its arc4random state and aborts on failure, so on plain 4.9 *every* process dies in libc init —
+  `init` first — and the device loops at the Google logo with nothing on USB. Takes the
+  `VM_ARCH_2` bit as upstream did; x86 `VM_MPX` moves to a high arch bit (not built here).
+
+Find the next floor item without a full boot, on the phone (slot b, test data disposable):
+
+1. Build a hybrid boot image: the 24.0 `boot.img` header + kernel + dtb with the **22.2 recovery
+   ramdisk** (unpack both with `unpack_bootimg --format=mkbootimg`, repack with the 24.0 args and
+   the 22.2 `--ramdisk`). It boots fastbootd/recovery on the candidate kernel; the 24.0 ramdisk is
+   what fails.
+2. `fastboot flash boot_b hyb.img`, `fastboot reboot fastboot`, then from fastbootd
+   `fastboot reboot recovery` — the bootloader's own `reboot recovery` is unsupported and
+   `fastboot boot <img>` does a *normal* boot, so neither is usable. Recovery-mode boot failures
+   bounce to the bootloader without touching the slot retry count; normal-boot failures burn one
+   each (6 → unbootable). Do not normal-boot slot b until the harness passes.
+3. In recovery: `adb root`; push the 24.0 ramdisk's `system/` tree to `/tmp/rd24` on the phone (its
+   own tmpfs) and run `adb shell chroot /tmp/rd24 /system/bin/toybox uname -a`. The first fatal is
+   the next kernel gap (this is how 0001 was found: `arc4random data MADV_WIPEONFORK failed:
+   Invalid argument`). The 22.2 ramdisk boots because bionic 15 has no such requirement.
+4. Only then flash the real `boot.img` (+ `dtbo.img`, `vbmeta.img` from the same build) and
+   normal-boot; `adb logcat -s NetBpfLoad:* LibBpfLoader:*` for the eBPF floor.
+
+pstore/console-ramoops is empty on this kernel even after clean boots; don't wait on it.
 
 ### `vendor/google/bonito`
 
