@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-40 patches across 8 upstream projects, applied at build time from
+41 patches across 8 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -228,6 +228,13 @@ patch is one build failure or one removed interface:
   Adreno and QSEECom all allocate through ION on 4.9). `device/lineage/sepolicy/libion/sepolicy.mk`
   carries the removed rules; `BoardConfigLineage.mk` includes it. Rebuild `systemextimage
   vendorimage` (file_contexts is system_ext; the vendor precompiled policy hashes it).
+- **0026 keep the gralloc 2/3 probe in libui** — Android 17 libui gates `Gralloc2Mapper`/
+  `Gralloc3Mapper` behind `require_gralloc4_or_newer` (ENABLED, READ_ONLY in cp2a) once
+  `ro.build.version.sdk` ≥ 36; the display stack is HIDL mapper@2.1/allocator@2.0, so
+  `GraphicBufferMapper()` aborts `gralloc-mapper is missing` in composer@2.2, surfaceflinger and the
+  camera provider, and surfaceflinger's restart limit reboots into recovery. Lineage kept the probe
+  behind soong config `libui.legacy_gralloc` (frameworks/native `c7d417fbe1`); `device-lineage.mk`
+  sets it. One module builds both the system and vendor libui. Rebuild `systemimage vendorimage`.
 
 ### `kernel/google/msm-4.9`
 
