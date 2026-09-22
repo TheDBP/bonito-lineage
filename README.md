@@ -9,7 +9,7 @@ blobs. It boots, and the hardware works. LineageOS stopped supporting this devic
 
 ## State
 
-Working: boot (~30 s), display, touch, wifi, Bluetooth incl. audio, audio, fingerprint, camera
+Working: boot (~30 s), display (with the caveat below), touch, wifi, Bluetooth incl. audio, audio, fingerprint, camera
 (both sensors, stills verified), modem, **VoLTE and VoWiFi**, NFC, vibrator with its factory
 calibration, GPU memory reporting, power.stats over AIDL, double-tap-to-wake.
 
@@ -20,6 +20,7 @@ Not working, and why:
 | **CHRE** | The SLPI refuses the DSP image: `undefined symbol #25 __sensors_island_start`. Everything on the Android side is correct — fastrpc opens, the user PD is created, the sensor registry is readable — so this is inside the DSP blobs, paired with firmware from the same factory image. Not fixable from here. |
 | **Active Edge** | Needs a CHRE nanoapp, so it follows CHRE. `ElmyraService` hides its own settings entry and tile rather than leaving a toggle that does nothing. The strain gauges are separately readable as `com.google.sensor.elmyra.raw`, so a CHRE-free implementation is possible — but that sensor is `non-wakeUp`, which is the part CHRE existed to avoid. |
 | **Double twist** | The sensor exists; nothing consumes it. The gesture lived in Google Camera, which this build does not ship. Correctly absent rather than broken. |
+| **Display wedges on a theme change** | Reproducible: Wallpaper & Styles > Colors > Apply. Every process swaps its theme RRO at once, all surfaces are recreated together, and in that reconfiguration the HAL commits a plane with a framebuffer but no CRTC. `drm_atomic_plane_check()` rejects it (`drm_atomic.c:868`, "FB set but no CRTC"), `drmModeAtomicCommit` returns `EINVAL`, and the panel never comes back while the framework still reports the display Awake. Unblanking the backlight by hand does not recover it; only a reboot does. **0029 is not a fix for this** — see below. |
 | **Some `.bpf` programs** | `memevents`, `bpfRingbufProg` and `kernelWakelockDuration` want BPF features newer than 4.9 (ringbuf is 5.8+). `gpuMem` and `gpuWork` do load. |
 
 Not gaps: wireless charging (the 3a series has no coil).
@@ -69,12 +70,19 @@ trees, which is why it was picked over the LG V20 as the first Android 16+ targe
 `vendor/lineage` defines on `lineage-24.0` (`vars/aosp_target_release`; 23.2 was `bp4a`, 22.2
 `bp1a`).
 
-GApps needs `GAPPS_URL` in `device.conf`, set here to **MindTheGapps 17.0.0-arm64**. The forge
-picks a NikGapps URL from the Android version and NikGapps has no Android 17 build, so without the
-override the build stops rather than guessing — GApps are version-specific and a mismatch is
-silent, the apps install and are simply built for another platform. MindTheGapps is what LineageOS
-itself recommends, and `forge/tools/extract-gapps-apps.sh` takes either layout (it matches by
-package name), so no forge change was needed.
+GApps arrives in two halves, which is worth knowing before changing either. GMS Core and the Play
+Store come from `vendor/gapps` — **MindTheGapps built from source** by the `gapps` option's own
+local manifest (revision `cinnamonbun` = Android 17) — and need nothing set here. `GAPPS_URL` feeds
+a separate step, `extract-gapps-apps.sh`, which swaps seven stock apps for Google's builds of them
+(Calculator, Calendar, Clock, Contacts, Files, Messages, Phone).
+
+`GAPPS_URL` still has to be set, because the forge otherwise derives Android 17 from the branch and
+NikGapps has no Android 17 build — it stops rather than guessing, which is right: GApps are
+version-specific and a mismatch is silent, the apps install and are simply built for another
+platform. MindTheGapps 17 is used for that half too.
+
+**Velvet** — the Google app and Assistant, the single largest component — is dropped outright by
+the option's own patch on every branch, so it does not ship either way.
 
 Room is the other constraint: `WITH_GAPPS=true` drops the `/product` reservation from 512 MiB to
 32, which is what makes a 522 MiB GApps package fit inside the 3880 MiB dynamic-partition budget.
@@ -291,6 +299,13 @@ patch is one build failure or one removed interface:
   virtual twins of the three DMA pipes (`src_blk` 0x25000/0x27000/0x29000). The allocator is a
   blob, but it reads `vendor.display.disable_multirect`. Costs the five secondary rects, leaving
   one composition layer per SSPP.
+
+  **This fixes one path to the wedge, not the wedge.** The `r1 only virt plane` errors are gone
+  (zero since), but the display still dies on a theme change, by a different route: there the plane
+  carries a framebuffer with no CRTC and the *DRM core* rejects it, not the vendor check. The two
+  are distinguishable — the multirect one leaves the framebuffer blank (the compositor stopped
+  drawing), the theme one leaves it 97% drawn (the compositor is fine and the panel never comes
+  back). Same end state, opposite causes.
 - **0030 sepolicy for two HALs Android 17 started denying** — Android 17 labels `/sys/class/typec`
   `sysfs_typec`, a type new at board API 202604, and no vendor rule granted it, so the health HAL
   was denied on every poll. The gadget HAL needed `get_prop` on `vendor.usb.config`, which only
