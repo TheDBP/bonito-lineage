@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 11:01:37 -0400
+Subject: [PATCH] bonito: sepolicy for two HALs Android 17 started denying
+
+The health HAL reads /sys/class/typec to get charger and port state.
+Android 17 labels that directory sysfs_typec, a type introduced at board
+API 202604, and no vendor rule grants it, so the HAL is denied on every
+poll -- 150 denials in one boot, 54 in the next. Basic charging still
+works (the battery reports USB powered and a correct level), so what is
+lost is port and accessory detail rather than charging itself.
+
+The gadget HAL reads vendor.usb.config to find the configured function
+list. hal_usb_impl has set_prop for that type and nothing ever had
+get_prop, so the read is denied.
+
+Not fixed here, deliberately: sensors.qti is denied read/write on
+/dev/diag, and granting a sensor daemon the Qualcomm diag interface is a
+bigger concession than the one denial per boot is worth. The nfc app
+domain is denied search on nfc_vendor_data_file, which is a core domain
+and wants its rule placed with more care than a vendor .te.
+---
+ sepolicy/vendor/google/hal_health_default.te  | 4 ++++
+ sepolicy/vendor/google/hal_usb_gadget_impl.te | 3 +++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/sepolicy/vendor/google/hal_health_default.te b/sepolicy/vendor/google/hal_health_default.te
+index 8d4613f5..2aeb0120 100644
+--- a/sepolicy/vendor/google/hal_health_default.te
++++ b/sepolicy/vendor/google/hal_health_default.te
+@@ -25,3 +25,7 @@ set_prop(hal_health_default, vendor_battery_defender_prop)
+ 
+ allow hal_health_default self:capability2 wake_alarm;
+ allow hal_health_default mnt_vendor_file:dir search;
++
++# Android 17 labels /sys/class/typec sysfs_typec, a type new at board API 202604, and the health
++# HAL walks the port to read charger state. Without this it is denied on every poll.
++r_dir_file(hal_health_default, sysfs_typec)
+diff --git a/sepolicy/vendor/google/hal_usb_gadget_impl.te b/sepolicy/vendor/google/hal_usb_gadget_impl.te
+index ddd90c2f..0a166848 100644
+--- a/sepolicy/vendor/google/hal_usb_gadget_impl.te
++++ b/sepolicy/vendor/google/hal_usb_gadget_impl.te
+@@ -12,3 +12,6 @@ set_prop(hal_usb_gadget_impl, vendor_usb_prop)
+ allow hal_usb_gadget_impl sysfs_batteryinfo:dir r_dir_perms;
+ allow hal_usb_gadget_impl sysfs_batteryinfo:file rw_file_perms;
+ allow hal_usb_gadget_impl sysfs_extcon:dir search;
++
++# The gadget HAL reads back the configured function list; hal_usb_impl only ever had set_prop.
++get_prop(hal_usb_gadget_impl, vendor_usb_config_prop)
