@@ -9,7 +9,7 @@ blobs. It boots, and the hardware works. LineageOS stopped supporting this devic
 
 ## State
 
-Working: boot (~30 s), display (with the caveat below), touch, wifi, Bluetooth incl. audio, audio, fingerprint, camera
+Working: boot (~30 s), display, touch, wifi, Bluetooth incl. audio, audio, fingerprint, camera
 (both sensors, stills verified), modem, **VoLTE and VoWiFi**, NFC, vibrator with its factory
 calibration, GPU memory reporting, power.stats over AIDL, double-tap-to-wake.
 
@@ -20,7 +20,6 @@ Not working, and why:
 | **CHRE** | The SLPI refuses the DSP image: `undefined symbol #25 __sensors_island_start`. Everything on the Android side is correct — fastrpc opens, the user PD is created, the sensor registry is readable — so this is inside the DSP blobs, paired with firmware from the same factory image. Not fixable from here. |
 | **Active Edge** | Needs a CHRE nanoapp, so it follows CHRE. `ElmyraService` hides its own settings entry and tile rather than leaving a toggle that does nothing. The strain gauges are separately readable as `com.google.sensor.elmyra.raw`, so a CHRE-free implementation is possible — but that sensor is `non-wakeUp`, which is the part CHRE existed to avoid. |
 | **Double twist** | The sensor exists; nothing consumes it. The gesture lived in Google Camera, which this build does not ship. Correctly absent rather than broken. |
-| **Display wedges on a theme change** | Reproducible: Wallpaper & Styles > Colors > Apply. Every process swaps its theme RRO at once, all surfaces are recreated together, and in that reconfiguration the HAL commits a plane with a framebuffer but no CRTC. `drm_atomic_plane_check()` rejects it (`drm_atomic.c:868`, "FB set but no CRTC"), `drmModeAtomicCommit` returns `EINVAL`, and the panel never comes back while the framework still reports the display Awake. Unblanking the backlight by hand does not recover it; only a reboot does. **0029 is not a fix for this** — see below. |
 | **Some `.bpf` programs** | `memevents`, `bpfRingbufProg` and `kernelWakelockDuration` want BPF features newer than 4.9 (ringbuf is 5.8+). `gpuMem` and `gpuWork` do load. |
 
 Not gaps: wireless charging (the 3a series has no coil).
@@ -171,7 +170,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-60 patches across 16 upstream projects, applied at build time from
+61 patches across 16 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -301,11 +300,10 @@ patch is one build failure or one removed interface:
   one composition layer per SSPP.
 
   **This fixes one path to the wedge, not the wedge.** The `r1 only virt plane` errors are gone
-  (zero since), but the display still dies on a theme change, by a different route: there the plane
-  carries a framebuffer with no CRTC and the *DRM core* rejects it, not the vendor check. The two
-  are distinguishable — the multirect one leaves the framebuffer blank (the compositor stopped
-  drawing), the theme one leaves it 97% drawn (the compositor is fine and the panel never comes
-  back). Same end state, opposite causes.
+  (zero since), but a second, unrelated fault killed the display on a theme change until
+  `hardware/qcom/sdm845/display` 0002. Tell the two apart by the framebuffer: the multirect one
+  leaves it blank (the compositor stopped drawing), the other left it ~97% drawn (the compositor
+  was fine and the panel never came back). Same end state, opposite causes.
 - **0030 sepolicy for two HALs Android 17 started denying** — Android 17 labels `/sys/class/typec`
   `sysfs_typec`, a type new at board API 202604, and no vendor rule granted it, so the health HAL
   was denied on every poll. The gadget HAL needed `get_prop` on `vendor.usb.config`, which only
@@ -460,6 +458,23 @@ The blob repo (TheMuppets, lineage-22.2 branch — there is no 24.0 one). The pa
   so hwcomposer.qcom no longer linked. The hook toggled panel high-brightness mode through the
   Google light HAL's `setHbm()` when an HDR layer covered more than half the screen; the AIDL
   lights HAL has no such call. Backlight brightness is unaffected (sysfs write).
+
+- **0002 defer fb_id removal until a commit later** — `~FrameBufferObject` called `drmModeRmFB`
+  as soon as its refcount hit zero, without regard for whether the hardware was still scanning that
+  buffer out. Removing a live framebuffer makes the kernel force-disable the plane and then the
+  CRTC (`drm_framebuffer_remove` -> `drm_mode_set_config_internal`, `NOMODE`), so the panel switched
+  off while SurfaceFlinger still believed the display was on and never powered it back up — only a
+  reboot recovered it. Reproducible on any wallpaper or colour-scheme change, which destroys and
+  recreates nearly every surface at once.
+
+  The hazard came from two QCOM commits, `20ec28d0 "sdm: Clear fb_id map if it exceeds the size
+  limit"` and `0f70014c "sdm: Reduce the fb_id cache limit for UI layers"`; there is no upstream
+  fix. Every path that drops the last reference can trigger it — cache eviction, layer teardown,
+  display reconfigure — so the fix is the lifetime rule, not the callers: destruction queues the
+  id and the queue drains one full commit later. Verified by counters rather than by the symptom;
+  forced plane disables, CRTC `NOMODE` and the composer's own `drm_atomic.c:868` "FB set but no
+  CRTC" warning all sit at zero across a dozen theme changes, where the warning previously fired
+  continuously.
 
 ### `external/tinyxml2`
 
