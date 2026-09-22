@@ -1,0 +1,117 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 17:49:53 -0400
+Subject: [PATCH] sdm: defer fb_id removal until a commit later
+
+~FrameBufferObject called drmModeRmFB the moment its refcount hit zero, with no regard for
+whether the hardware was still scanning that buffer out. Removing a live framebuffer makes the
+kernel force-disable the plane and then the CRTC (drm_framebuffer_remove ->
+drm_mode_set_config_internal, NOMODE), so the panel switches off while SurfaceFlinger still
+believes the display is on and never powers it back up. Only a reboot recovers it.
+
+Any path that drops the last reference could do this -- cache eviction, layer teardown, display
+reconfigure -- so fixing them individually does not close the hole. Queue the id on destruction
+instead and drain it one full commit later, which guarantees a framebuffer outlives every commit
+that could still reference it.
+
+---
+ sdm/libs/core/drm/hw_device_drm.cpp | 66 ++++++++++++++++++++++++++---
+ 1 file changed, 60 insertions(+), 6 deletions(-)
+
+diff --git a/sdm/libs/core/drm/hw_device_drm.cpp b/sdm/libs/core/drm/hw_device_drm.cpp
+index aa0e13c5..99eb86f6 100644
+--- a/sdm/libs/core/drm/hw_device_drm.cpp
++++ b/sdm/libs/core/drm/hw_device_drm.cpp
+@@ -58,6 +58,7 @@
+ #include <utility>
+ #include <vector>
+ #include <limits>
++#include <mutex>
+ 
+ #include "hw_device_drm.h"
+ #include "hw_info_interface.h"
+@@ -222,18 +223,68 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
+   }
+ }
+ 
++// A framebuffer must outlive the last commit that referenced it. Removing an fb_id while a
++// plane is still scanning it out makes the kernel force-disable the plane and then the CRTC:
++//
++//   drm_mode_rmfb_work_fn -> drm_framebuffer_remove -> drm_mode_set_config_internal (NOMODE)
++//
++// The panel goes off, SurfaceFlinger is never told, so it still believes the display is on and
++// never powers it back up -- the screen stays dark until the device reboots. Measured on a
++// Pixel 3a XL, where a wallpaper or colour-scheme change churns enough buffers to trigger it
++// every time.
++//
++// Destroying a FrameBufferObject therefore only queues its id. The queue is drained one full
++// commit later, which guarantees the id outlives any commit that could still be referencing it.
++class FbIdRetireQueue {
++ public:
++  static void Queue(uint32_t fb_id) {
++    std::lock_guard<std::mutex> lock(mutex_);
++    pending_.push_back(fb_id);
++  }
++
++  // Called after a successful commit: whatever was queued before the previous commit can no
++  // longer be referenced by hardware, so it is safe to remove now.
++  static void Retire() {
++    std::vector<uint32_t> done;
++    {
++      std::lock_guard<std::mutex> lock(mutex_);
++      done.swap(retiring_);
++      retiring_.swap(pending_);
++    }
++    if (done.empty()) {
++      return;
++    }
++    DRMMaster *master = nullptr;
++    DRMMaster::GetInstance(&master);
++    if (!master) {
++      return;
++    }
++    for (uint32_t fb_id : done) {
++      int ret = master->RemoveFbId(fb_id);
++      if (ret < 0) {
++        DLOGE("Removing fb_id %d failed with error %d", fb_id, errno);
++      }
++    }
++  }
++
++ private:
++  static std::mutex mutex_;
++  static std::vector<uint32_t> pending_;
++  static std::vector<uint32_t> retiring_;
++};
++
++std::mutex FbIdRetireQueue::mutex_;
++std::vector<uint32_t> FbIdRetireQueue::pending_;
++std::vector<uint32_t> FbIdRetireQueue::retiring_;
++
+ class FrameBufferObject : public LayerBufferObject {
+  public:
+   explicit FrameBufferObject(uint32_t fb_id) : fb_id_(fb_id) {
+   }
+ 
+   ~FrameBufferObject() {
+-    DRMMaster *master;
+-    DRMMaster::GetInstance(&master);
+-    int ret = master->RemoveFbId(fb_id_);
+-    if (ret < 0) {
+-      DLOGE("Removing fb_id %d failed with error %d", fb_id_, errno);
+-    }
++    // Deferred on purpose -- see FbIdRetireQueue above. Removing it here can switch the panel off.
++    FbIdRetireQueue::Queue(fb_id_);
+   }
+   uint32_t GetFbId() { return fb_id_; }
+ 
+@@ -1152,6 +1203,9 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayers *hw_layers) {
+     return kErrorHardware;
+   }
+ 
++  // The commit above is the one that stopped referencing anything freed since the last commit.
++  FbIdRetireQueue::Retire();
++
+   int release_fence = -1;
+   int retire_fence = -1;
+ 
