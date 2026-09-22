@@ -2,6 +2,6 @@
 # Update with: ./forge/tools/sync-forge.sh [ref]
 url=https://github.com/TheDBP/rom-forge.git
 ref=main
-commit=e1d06ae956d39ce8857e6526ad2224cd3765eebe
-subject=docs: restarting a HAL to pick up a property is not a cheap test
-synced=2026-09-22T20:01:59Z
+commit=9e42fba63c629bcdcc216826d4f6b3030dcc09d1
+subject=docs: index the dead-panel doc, and warn about a stale BASE_REF
+synced=2026-09-22T22:28:57Z
