@@ -1,28 +1,47 @@
-# Pixel 3a XL — LineageOS 24.0 (Android 17) — GROUNDWORK ONLY
+# Pixel 3a XL — LineageOS 24.0 (Android 17)
 
-An early attempt to take the **Pixel 3a XL** (`bonito`) to Android 17. It was a 23.2 (Android 16)
-skeleton until 2026-09-17; the gate is the same for 16 and 17 (see *The kernel gate*), and 23.x
-will freeze once 24 matures, so the target moved without anything being built in between.
+The **Pixel 3a XL** (`bonito`) on Android 17, running an Android 15 kernel and Android 12 vendor
+blobs. It boots, and the hardware works. LineageOS stopped supporting this device after a stale
+`lineage-23.0` branch; 23.x will freeze once 24 matures, so the target went straight to 24.
 
-> **Nothing works here yet.** No build has been attempted.
-> **For a working Pixel 3a XL ROM, use the [`lineage-22.2`](../../tree/lineage-22.2) branch.**
+> For a supported build, use the [`lineage-22.2`](../../tree/lineage-22.2) branch. This one is
+> ours, not upstream's.
+
+## State
+
+Working: boot (~30 s), display, touch, wifi, Bluetooth incl. audio, audio, fingerprint, camera
+(both sensors, stills verified), modem, **VoLTE and VoWiFi**, NFC, vibrator with its factory
+calibration, GPU memory reporting, power.stats over AIDL, double-tap-to-wake.
+
+Not working, and why:
+
+| | |
+|---|---|
+| **CHRE** | The SLPI refuses the DSP image: `undefined symbol #25 __sensors_island_start`. Everything on the Android side is correct — fastrpc opens, the user PD is created, the sensor registry is readable — so this is inside the DSP blobs, paired with firmware from the same factory image. Not fixable from here. |
+| **Active Edge** | Needs a CHRE nanoapp, so it follows CHRE. `ElmyraService` hides its own settings entry and tile rather than leaving a toggle that does nothing. The strain gauges are separately readable as `com.google.sensor.elmyra.raw`, so a CHRE-free implementation is possible — but that sensor is `non-wakeUp`, which is the part CHRE existed to avoid. |
+| **Double twist** | The sensor exists; nothing consumes it. The gesture lived in Google Camera, which this build does not ship. Correctly absent rather than broken. |
+| **Some `.bpf` programs** | `memevents`, `bpfRingbufProg` and `kernelWakelockDuration` want BPF features newer than 4.9 (ringbuf is 5.8+). `gpuMem` and `gpuWork` do load. |
+
+Not gaps: wireless charging (the 3a series has no coil).
 
 ## The kernel gate
 
-Before any of the below: Android 16+ needs eBPF features this device's 4.9 kernel does not have, and
-no 4.14+ kernel exists for its SoC. The first job is adapting the 4.14-era eBPF backports onto
-`kernel/google/msm-4.9`; the device-tree work below only matters after that. Details and sources in
-[ANDROID-16.md](ANDROID-16.md), *The kernel gate*.
+Android 16+ needs eBPF features this device's 4.9 kernel does not have, and no 4.14+ kernel exists
+for its SoC — so the backports had to come to `kernel/google/msm-4.9` rather than the kernel being
+replaced. That work is done and is `overlay/patches/kernel/google/msm-4.9/`, one patch per thing
+Android 17 userspace needs from the kernel, in the order it hits them. Background and sources in
+[ANDROID-16.md](ANDROID-16.md).
 
-## What exists so far
+Two kernel things are config rather than code, and live in the forge as
+`KERNEL_EXTRA_CONFIGS` fragments: `bpf-events` (without `CONFIG_BPF_EVENTS` the tracing BPF program
+types are not registered at all, so every `.bpf` object fails to load with a bare `EINVAL` and an
+*empty* verifier log) and the `linux` option's container fragments.
 
-The branch, a manifest pinned to the branches that actually exist, and the 22.2 device patches
-carried forward: partition sizing for baked-in GApps, schedutil/powerhint tuning, the VINTF OTA
-relaxation and the build tag (the Velvet drop is the forge's `gapps` option, not a device patch).
+## What exists
 
-`COMMON_OPTIONS` matches the 22.2 branch. No option has `lineage-24.0` patches in the forge yet, so
-the ones that carry patches stop the build at the option check until those are derived from the
-23.2 sets.
+The full device patch series below, the kernel backports, and the forge options. Every option that
+carries patches now has a `lineage-24.0` set. GApps needs `GAPPS_URL` set in `device.conf`, because
+NikGapps has no Android 17 build — see the comment there.
 
 ## The shape of the job
 
@@ -48,8 +67,17 @@ trees, which is why it was picked over the LG V20 as the first Android 16+ targe
 
 `LUNCH_TARGET` is `lineage_bonito-cp2a-userdebug`: `cp2a` is the one release config
 `vendor/lineage` defines on `lineage-24.0` (`vars/aosp_target_release`; 23.2 was `bp4a`, 22.2
-`bp1a`). No GApps package for Android 17 is wired into the forge; `clean` and `libre` are the only
-presets that can be attempted.
+`bp1a`).
+
+GApps needs `GAPPS_URL` in `device.conf`, set here to **MindTheGapps 17.0.0-arm64**. The forge
+picks a NikGapps URL from the Android version and NikGapps has no Android 17 build, so without the
+override the build stops rather than guessing — GApps are version-specific and a mismatch is
+silent, the apps install and are simply built for another platform. MindTheGapps is what LineageOS
+itself recommends, and `forge/tools/extract-gapps-apps.sh` takes either layout (it matches by
+package name), so no forge change was needed.
+
+Room is the other constraint: `WITH_GAPPS=true` drops the `/product` reservation from 512 MiB to
+32, which is what makes a 522 MiB GApps package fit inside the 3880 MiB dynamic-partition budget.
 
 ## More
 
@@ -80,11 +108,14 @@ behaviour of its own. Same as the 22.2 branch; `clean` is the right first attemp
 | `clean` | `turbo-clean` | nothing — this is the baseline |
 | `libre` | `turbo-libre` | `fdroid`, `fulguris`, `k9`, `termoneplus`, `kdeconnect`, `connectbot`, `linphone` |
 | `full` | `turbo` | `fdroid`, `fulguris`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `root`, `connectbot`, `linphone` |
+| `stock` | `stock` | nothing, and **not the shared set either** — plain LineageOS plus only the patches that make this hardware run. Reserved by the forge, so it needs no row in `device.conf`. Use it to tell our bugs from upstream's. |
 
 Every preset also carries the shared set, which is what makes this build look and behave the way
 it does regardless of which preset you pick:
 
-`advanced-restart` `dark-default` `google-feed-off` `home-defaults` `linux` `livedisplay-off` `minimal-home` `nav-icons` `nfc-off` `setupwizard-nag-skip` `teal-skin` `teal-wallpaper` `themed-icons`
+`advanced-restart` `dark-default` `google-feed-off` `home-defaults` `linux` `livedisplay-off` `minimal-home` `nav-icons` `setupwizard-nag-skip` `teal-skin` `teal-wallpaper` `themed-icons`
+
+(`nfc-off` was dropped: NFC off out of the box reads as broken hardware rather than as a default.)
 
 `oem` is in no preset. `EXTRA_OPTIONS` adds an option to whichever preset you build, and every
 option added that way appends its name to the tag:
@@ -250,6 +281,34 @@ patch is one build failure or one removed interface:
   it was fed over the old vndbinder `power.stats-vendor` interface, which the citadeld blob speaks
   and the AIDL provider does not. No sepolicy change is needed.
 
+- **0029 disable display multirect** — the pipe allocator in `libsdmextension.so` (prebuilt)
+  sometimes stages the second rect of a DMA pipe without the first. `sde_crtc_atomic_check()`
+  rejects an SSPP left holding only its virtual plane, so `drmModeAtomicCommit` fails `EINVAL`, SDM
+  reports "Composition strategies exhausted" and SurfaceFlinger stops presenting — a black panel
+  the framework still reports as on, recoverable only by rebooting. Waking, power cycling and
+  unblanking the backlight by hand all fail, and a screencap of the wedged device is uniformly
+  black, which is what proves it is the compositor and not the panel. The failing planes are the
+  virtual twins of the three DMA pipes (`src_blk` 0x25000/0x27000/0x29000). The allocator is a
+  blob, but it reads `vendor.display.disable_multirect`. Costs the five secondary rects, leaving
+  one composition layer per SSPP.
+- **0030 sepolicy for two HALs Android 17 started denying** — Android 17 labels `/sys/class/typec`
+  `sysfs_typec`, a type new at board API 202604, and no vendor rule granted it, so the health HAL
+  was denied on every poll. The gadget HAL needed `get_prop` on `vendor.usb.config`, which only
+  ever had `set_prop`. Not fixed deliberately: `sensors.qti` is denied `/dev/diag`, and handing a
+  sensor daemon the Qualcomm diag interface is a bigger concession than one denial per boot is
+  worth.
+- **0031 stop starting netd from post-fs-data** — a boot-time optimisation from when netd had no
+  dependency on BPF. On Android 17 netd is `disabled` and started only by
+  `on property:bpf.progs_loaded=1`, because `BpfHandler::init()` aborts if its maps are not pinned.
+  Starting it from `post-fs-data` ran it about six seconds early, every boot: SIGABRT, a tombstone,
+  and init starting it again from the proper trigger. The tell was that the second start ran `netd`
+  then `netd1shot` while the trigger does the reverse.
+- **0032 ship the CHRE daemon again, disabled** — brought back so the DSP failure can be retested
+  without a rebuild, and made inert: `system/chre` 0001 marks the service `disabled` and `oneshot`,
+  so neither init nor a manual start can reach the updatable-crash counter that forced 0027. The
+  retest has answered — see *State*.
+
+
 ### `kernel/google/msm-4.9`
 
 Backports only; there is no newer kernel for this SoC. Each patch names the upstream commit it
@@ -337,6 +396,22 @@ into the mount-before-data path) and passed on this kernel, ruling apexd itself 
 The harness in step 3 stops being useful once init gets past `selinux_setup`: recovery-mode init
 has no `/system`, so `SetupCgroups`, `apexd-bootstrap` and everything in `early-init` never run
 there. From that point on, use the ramoops trick.
+
+- **0005 gpu: backport the gpu_mem_total tracepoint and emit it from kgsl** — Android reports GPU
+  memory by attaching `gpuMem.bpf` to `gpu_mem/gpu_mem_total` and pinning
+  `map_gpuMem_gpu_mem_total_map`, which libmeminfo reads for the per-process figures and, at pid 0,
+  the global total. The tracepoint arrived in 5.4. The scaffolding is the upstream 5.4 code;
+  `drivers/gpu/Kconfig` does not exist on 4.9, so the new Kconfig is sourced from
+  `drivers/video/Kconfig` beside the other `drivers/gpu` subdirectories. kgsl already keeps the
+  numbers — only the reporting was missing — so per process `stats[]` is summed on each change, and
+  the global figure is one `atomic64` moved by the same deltas, making it the sum of the
+  per-process totals by construction rather than a second number that could drift. The summing loop
+  sits behind `trace_gpu_mem_total_enabled()`.
+
+  Necessary but **not sufficient**: without `CONFIG_BPF_EVENTS` the tracing program types are not
+  registered at all, so `find_prog_type()` rejects every `.bpf` object before the verifier runs. See
+  *The kernel gate*.
+
 
 ### `vendor/google/bonito`
 
@@ -461,6 +536,54 @@ edit that.
   separately visible as `com.google.sensor.elmyra.raw` (MAX11261, continuous 1-100 Hz) via the
   normal sensors HAL, so a CHRE-free implementation is possible, but it would be `non-wakeUp`:
   detection only while the AP is awake, which is the part CHRE existed to avoid.
+
+
+### `hardware/google/pixel`
+
+- **0001 revert "pixel: Restore drv2624 vibrator HAL APEX"** — brings the drv2624 vibrator HAL
+  back. Restoring `vibrator/drv2624` alone does not build: `VibratorHalDrv2624BinaryDefaults` needs
+  `PixelVibratorBinaryDefaults` from `vibrator/Android.bp`, so the revert takes the whole set.
+- **0002 revert "pixel: Drop powerstats HAL"** — not optional, and an earlier audit was wrong to
+  remove it: `vendor/google/bonito` builds `libnos_citadeld_proxy` against
+  `pixelpowerstats_provider_aidl_interface-cpp` from `powerstats/`, so dropping the project breaks
+  the Titan M proxy at link time. Having it back is also what makes device 0028 cheap.
+
+### `frameworks/base`
+
+- **0001 cap the SystemServiceRegistry wtf loop** — a missing service makes
+  `SystemServiceRegistry` log a `wtf` per lookup, which on this device is a flood. Gated on
+  `sReportedMissingServices`, so each missing service is reported once.
+
+### `hardware/interfaces`
+
+- **0001 libhealthloop: gate the uevent BPF filter on a 5.3 kernel** — the health HAL's
+  `skfilter/power_supply` program needs a verifier this kernel does not have. With
+  `DEFINE_BPF_PROG_KVER(..., KVER(5, 3, 0))` the loader skips it by design instead of failing; the
+  log line `skipping program ... min_kver:5030000 (kver:4090151)` is this working.
+
+### `system/bpf`
+
+- **0001/0002 loader fixes for 4.9** — the ringbuf test object is not critical, and `prog_name` is
+  only written when the kernel is at least 4.15. `bpf_attr` ends at `kern_version` before that, and
+  bpf(2) rejects the whole call if any byte past the last field it knows is set — before the
+  verifier runs, so the failure arrives as a bare `EINVAL` with nothing to read.
+
+### `system/memory/libmeminfo`
+
+- **0001 check the GPU map exists before opening it** — `BpfMapRO`'s constructor calls
+  `abortOnMismatch()`, which aborts the process when the map is not pinned, so the `isValid()` check
+  after it can never run. system_server died here on every boot while `gpuMem.bpf` was failing to
+  load. `access()` first and take the graceful path the function already has. Still correct now that
+  the map does load: it is the difference between a missing feature and a dead system_server.
+
+### `system/chre`
+
+- **0001 do not start the msm daemon automatically** — on a device where the daemon cannot reach
+  the SLPI it exits non-zero about 33 times a boot; init counts the 5th bad exit before
+  `sys.boot_completed`, sets `sys.init.updatable_crashing`, and apexd answers that by reverting and
+  rebooting. `disabled` stops init starting it, `oneshot` stops init restarting it when it is
+  started by hand, so the daemon can be tested on a booted device instead of costing a reboot to
+  find out.
 
 
 ## License
