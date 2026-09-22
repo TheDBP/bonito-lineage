@@ -1,0 +1,95 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 14:05:46 -0400
+Subject: [PATCH] ElmyraService: hide the settings entry and tile when the
+ gesture cannot work
+
+Stopping the service cured the restart loop but left the app's own
+Settings entry and quick settings tile in place. The preference stores
+'on' and nothing reads it, so squeezing the phone does nothing and the
+device looks like it is ignoring you -- quieter than the crash it
+replaced, and more misleading.
+
+Disable both components on the no-context-hub path, and enable them
+again on the path that succeeds. Doing it that way round rather than
+dropping the app from the build keeps it self-healing: if a context hub
+ever appears, onCreate gets past the check and the UI comes back without
+another patch.
+
+Measured on a Pixel 3a XL, where CHRE cannot start at all: the daemon
+opens fastrpc and creates its user PD, then the SLPI refuses the image
+with 'undefined symbol #25 __sensors_island_start'. That is inside the
+DSP blobs, so there is nothing to fix from here and the feature is not
+coming back on this device.
+---
+ src/org/protonaosp/elmyra/ElmyraService.kt | 29 ++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/src/org/protonaosp/elmyra/ElmyraService.kt b/src/org/protonaosp/elmyra/ElmyraService.kt
+index d33e709..9656a53 100644
+--- a/src/org/protonaosp/elmyra/ElmyraService.kt
++++ b/src/org/protonaosp/elmyra/ElmyraService.kt
+@@ -18,10 +18,12 @@ package org.protonaosp.elmyra
+ 
+ import android.app.Service
+ import android.content.BroadcastReceiver
++import android.content.ComponentName
+ import android.content.Context
+ import android.content.Intent
+ import android.content.SharedPreferences
+ import android.content.IntentFilter
++import android.content.pm.PackageManager
+ import android.hardware.location.ContextHubClient
+ import android.hardware.location.ContextHubClientCallback
+ import android.hardware.location.ContextHubManager
+@@ -46,6 +48,8 @@ import org.protonaosp.elmyra.getAllowScreenOff
+ 
+ private const val NANOAPP_ID = 0x476f6f676c00100eL
+ private const val REJECT_COOLDOWN_TIME = 1000 // ms
++private const val SETTINGS_ACTIVITY = "org.protonaosp.elmyra.settings.SettingsActivity"
++private const val TILE_SERVICE = "org.protonaosp.elmyra.settings.ToggleTileService"
+ 
+ class ElmyraService : Service(), SharedPreferences.OnSharedPreferenceChangeListener {
+     // Services
+@@ -80,6 +84,7 @@ class ElmyraService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
+             // nothing to listen to. Indexing the empty list here threw, and this is a persistent
+             // process, so the framework restarted it forever rather than giving up.
+             Log.w(TAG, "No context hub on this device, Active Edge is unavailable")
++            hideUi()
+             stopSelf()
+             return
+         }
+@@ -99,9 +104,33 @@ class ElmyraService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
+ 
+         // Only register for changes after initial pref updates
+         prefs.registerOnSharedPreferenceChangeListener(this)
++        setUiEnabled(true)
+         started = true
+     }
+ 
++    // Take the settings entry and the quick settings tile away when the gesture cannot work.
++    // Leaving them is worse than the crash this replaced: the preference stores "on", nothing
++    // reads it, and the phone looks like it is ignoring you. Disabling the components rather than
++    // dropping the app from the build keeps this self-healing -- if a context hub ever appears,
++    // onCreate gets past the check and re-enables them.
++    private fun setUiEnabled(enabled: Boolean) {
++        val state = if (enabled) {
++            PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
++        } else {
++            PackageManager.COMPONENT_ENABLED_STATE_DISABLED
++        }
++        for (cls in arrayOf(SETTINGS_ACTIVITY, TILE_SERVICE)) {
++            try {
++                packageManager.setComponentEnabledSetting(
++                        ComponentName(packageName, cls), state, PackageManager.DONT_KILL_APP)
++            } catch (e: Exception) {
++                Log.w(TAG, "Could not set $cls enabled=$enabled", e)
++            }
++        }
++    }
++
++    private fun hideUi() = setUiEnabled(false)
++
+     override fun onDestroy() {
+         // Nothing was set up if we stopped early, and tearing down what was never registered
+         // throws in its own right.

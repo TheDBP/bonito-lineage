@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 14:07:02 -0400
+Subject: [PATCH] bonito: stop starting netd from post-fs-data
+
+The vendor rc started netd in post-fs-data, a boot-time optimisation from
+when netd had no dependency on BPF. On Android 17 netd is 'disabled' in
+netd.rc and started only by 'on property:bpf.progs_loaded=1', because
+BpfHandler::init() aborts outright if the maps it needs are not pinned.
+
+So this ran netd about six seconds before the loader, every boot:
+
+  [44.964] starting service 'netd'              <- from here
+  [45.027] processing action (load-bpf-programs)
+  [45.160] Service 'netd' (pid 1572) SIGABRT
+
+init then started it again from the proper trigger and it worked, which
+is why this looked harmless. It was not: a SIGABRT and a tombstone per
+boot, and netd's real start time was unchanged either way, so the
+optimisation bought nothing.
+
+The tell was that the second start ran netd then netd1shot, while the
+trigger in netbpfload.rc does netd1shot then netd -- so the first start
+could not have come from the trigger.
+
+Verified: 1 netd start, 0 SIGABRT.
+---
+ init.hardware.rc | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/init.hardware.rc b/init.hardware.rc
+index afa2788d..cbe836d6 100644
+--- a/init.hardware.rc
++++ b/init.hardware.rc
+@@ -239,8 +239,12 @@ on post-fs
+     write /sys/module/drm/parameters/vblankoffdelay -1
+ 
+ on post-fs-data
+-    # We can start netd here before in is launched in common init.rc on zygote-start
+-    start netd
++    # Do NOT start netd here. This was a boot-time optimisation from when netd had no dependency
++    # on BPF. On Android 17 netd is 'disabled' in netd.rc and is started only by
++    # 'on property:bpf.progs_loaded=1', because BpfHandler::init() aborts if the maps it needs are
++    # not pinned yet. Starting it from post-fs-data runs it about 6 seconds before the loader:
++    # netd takes SIGABRT, leaves a tombstone, and init starts it again from the proper trigger --
++    # so this bought nothing and cost a crash every boot.
+ 
+     # b/38048356 Setup debug folders for camera
+     mkdir /data/vendor/camera 0770 camera camera

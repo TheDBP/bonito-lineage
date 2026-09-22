@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 14:07:26 -0400
+Subject: [PATCH] chre: do not start the msm daemon automatically
+
+On a device where the daemon cannot reach the SLPI it exits non-zero
+about 33 times a boot. init counts the 5th bad exit before
+sys.boot_completed, sets sys.init.updatable_crashing, and apexd answers
+that by reverting and rebooting -- a boot loop whose cause is three
+services away from the symptom.
+
+'disabled' keeps init from starting it, 'oneshot' keeps init from
+restarting it when it is started by hand, so neither route reaches that
+counter and the daemon can be tested on a booted device instead of
+costing a reboot to find out.
+
+Drop both lines on a device where the DSP side works.
+---
+ host/msm/chre_daemon_msm.rc | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/host/msm/chre_daemon_msm.rc b/host/msm/chre_daemon_msm.rc
+index 5de25525f..dfb4c59a7 100644
+--- a/host/msm/chre_daemon_msm.rc
++++ b/host/msm/chre_daemon_msm.rc
+@@ -19,6 +19,13 @@ on post-fs-data
+ 
+ service vendor.chre /vendor/bin/chre_daemon_msm
+     class late_start
++    # Not started at boot on this device. The daemon cannot open a fastrpc session to the SLPI and
++    # exits non-zero ~33 times a boot; the 5th bad exit before sys.boot_completed sets
++    # sys.init.updatable_crashing, and apexd answers that by reverting and rebooting. disabled
++    # keeps init from starting it, oneshot keeps init from restarting it if it is started by hand,
++    # so neither path can reach that counter. Drop both once the DSP side works.
++    disabled
++    oneshot
+     user context_hub
+     group wakelock context_hub
+     capabilities BLOCK_SUSPEND
