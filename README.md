@@ -175,7 +175,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-61 patches across 16 upstream projects, applied at build time from
+60 patches across 16 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -283,6 +283,11 @@ patch is one build failure or one removed interface:
   `libchre_slpi_skel.so` with `undefined symbol #25 __sensors_island_start`. It then exits badly
   enough, often enough, to trip init's updatable-crash path and reboot the device. Dropping it
   costs sensor offload to the DSP; the ordinary sensor HAL is unaffected.
+
+  It was shipped again briefly to retest once the persist sensor-registry denials were fixed; the
+  DSP rejected the image exactly as before, so the daemon stays unshipped and that patch is gone.
+  `system/chre` 0001 stays as the guard: if anything ever puts the daemon back, the service is
+  `disabled` and `oneshot` and cannot reach init's updatable-crash counter.
 - **0028 port the power.stats HAL to AIDL** — restores what 0016 had to drop. `power.stats@1.0` is
   in no matrix ≥ 7, but the AIDL interface is in matrix 7, so the same data passes
   `checkUnusedHals`. `hardware/google/pixel/powerstats` (back for citadeld anyway) carries the AIDL
@@ -321,11 +326,6 @@ patch is one build failure or one removed interface:
   Starting it from `post-fs-data` ran it about six seconds early, every boot: SIGABRT, a tombstone,
   and init starting it again from the proper trigger. The tell was that the second start ran `netd`
   then `netd1shot` while the trigger does the reverse.
-- **0032 ship the CHRE daemon again, disabled** — brought back so the DSP failure can be retested
-  without a rebuild, and made inert: `system/chre` 0001 marks the service `disabled` and `oneshot`,
-  so neither init nor a manual start can reach the updatable-crash counter that forced 0027. The
-  retest has answered — see *State*.
-
 
 ### `kernel/google/msm-4.9`
 
