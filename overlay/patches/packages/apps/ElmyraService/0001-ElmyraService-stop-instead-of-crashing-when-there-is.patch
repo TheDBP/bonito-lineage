@@ -1,0 +1,87 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 10:47:56 -0400
+Subject: [PATCH] ElmyraService: stop instead of crashing when there is no
+ context hub
+
+onCreate() indexed ContextHubManager.getContextHubs()[0] without
+checking it. On a device with no context hub that throws
+IndexOutOfBoundsException, and because the app is android:persistent the
+framework never stops restarting it: ActivityManager logs 'crashed too
+many times, killing!', then immediately re-adds it. Measured on a Pixel
+3a XL with CHRE disabled, that was over 2000 process starts in a single
+session, forking zygote and burning CPU the whole time.
+
+Check the list and stop the service instead. The gesture is delivered by
+a nanoapp running on the context hub, so there is genuinely nothing to
+listen to; stopping says so once rather than failing forever.
+
+onDestroy() needed guarding too, for the same class of bug in reverse:
+it unregistered a preference listener that the early return never
+registers, and a broadcast receiver that is only registered when
+screenRegistered is set, which throws if it was not.
+---
+ src/org/protonaosp/elmyra/ElmyraService.kt | 26 +++++++++++++++++++---
+ 1 file changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/org/protonaosp/elmyra/ElmyraService.kt b/src/org/protonaosp/elmyra/ElmyraService.kt
+index b2ffeb9..d33e709 100644
+--- a/src/org/protonaosp/elmyra/ElmyraService.kt
++++ b/src/org/protonaosp/elmyra/ElmyraService.kt
+@@ -55,6 +55,7 @@ class ElmyraService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
+     private lateinit var client: ContextHubClient
+ 
+     // State
++    private var started = false
+     private var inGesture = false
+     private var screenRegistered = false
+     private var lastRejectTime = 0L - REJECT_COOLDOWN_TIME
+@@ -72,14 +73,24 @@ class ElmyraService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
+     override fun onBind(intent: Intent?) = null
+ 
+     override fun onCreate() {
++        val manager = getSystemService("contexthub") as ContextHubManager
++        val hubs = manager.contextHubs
++        if (hubs.isEmpty()) {
++            // The gesture arrives from a nanoapp on the context hub, so without one there is
++            // nothing to listen to. Indexing the empty list here threw, and this is a persistent
++            // process, so the framework restarted it forever rather than giving up.
++            Log.w(TAG, "No context hub on this device, Active Edge is unavailable")
++            stopSelf()
++            return
++        }
++
+         val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+         vibrator = vibratorManager.defaultVibrator
+         prefs = getDePrefs()
+ 
+         Log.i(TAG, "Initializing CHRE gesture")
+ 
+-        val manager = getSystemService("contexthub") as ContextHubManager
+-        client = manager.createClient(manager.contextHubs[0], chreCallback)
++        client = manager.createClient(hubs[0], chreCallback)
+ 
+         updateAction()
+         updateSensitivity()
+@@ -88,11 +99,20 @@ class ElmyraService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
+ 
+         // Only register for changes after initial pref updates
+         prefs.registerOnSharedPreferenceChangeListener(this)
++        started = true
+     }
+ 
+     override fun onDestroy() {
++        // Nothing was set up if we stopped early, and tearing down what was never registered
++        // throws in its own right.
++        if (!started) {
++            return
++        }
+         prefs.unregisterOnSharedPreferenceChangeListener(this)
+-        unregisterReceiver(screenCallback)
++        if (screenRegistered) {
++            unregisterReceiver(screenCallback)
++            screenRegistered = false
++        }
+     }
+ 
+     private fun createAction(key: String): Action {

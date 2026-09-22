@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 10:39:55 -0400
+Subject: [PATCH] bonito: disable display multirect to stop the compositor
+ wedging
+
+The display dies intermittently: the panel goes black, the framework
+still reports the display Awake and ON, and nothing short of a reboot
+brings it back. Waking, power cycling and unblanking the backlight by
+hand all fail, and a screencap of the wedged device is uniformly black,
+so the compositor has stopped producing frames rather than the panel
+having lost power.
+
+The kernel names the cause:
+
+  [drm:sde_crtc_atomic_check] r1 only virt plane:89 not supported
+
+sde_crtc_atomic_check() pairs the planes staged on each SSPP, then
+rejects any SSPP left holding a single plane when that plane is the
+virtual one. So the pipe allocator asked for the second rect of a pipe
+without the first. drmModeAtomicCommit returns EINVAL, SDM reports
+'Composition strategies exhausted', and SurfaceFlinger can present
+nothing.
+
+The failing planes are 86, 89 and 91, which debugfs shows are the
+virtual twins of the three DMA pipes (src_blk 0x25000/0x27000/0x29000,
+xin 1/5/9). The allocator is PipeAlloc in libsdmextension.so, a prebuilt,
+so the assignment cannot be fixed here -- but the same blob reads
+vendor.display.disable_multirect, which turns the mechanism off.
+
+Verified on hardware: with the property set and the composer restarted,
+ten sleep/wake cycles produced no new errors at all, where before it
+failed on nearly every wake.
+
+Costs the five secondary rects, leaving one composition layer per SSPP
+and GPU fallback for heavy stacks.
+---
+ device.mk | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/device.mk b/device.mk
+index ea2f9aad..5fb98c61 100644
+--- a/device.mk
++++ b/device.mk
+@@ -265,6 +265,16 @@ PRODUCT_PROPERTY_OVERRIDES += \
+ PRODUCT_PROPERTY_OVERRIDES += \
+     vendor.display.disable_inline_rotator=1
+ 
++# The pipe allocator in libsdmextension.so (prebuilt) sometimes stages the
++# second rect of a DMA pipe without the first. sde_crtc_atomic_check() rejects
++# an SSPP left holding only its virtual plane, so drmModeAtomicCommit fails
++# EINVAL, SDM exhausts every composition strategy and SurfaceFlinger stops
++# presenting -- a black panel the framework still believes is on, recoverable
++# only by rebooting. Disabling multirect costs the five secondary rects and
++# keeps one composition layer per SSPP.
++PRODUCT_PROPERTY_OVERRIDES += \
++    vendor.display.disable_multirect=1
++
+ # Enable camera EIS3.0
+ PRODUCT_PROPERTY_OVERRIDES += \
+     persist.camera.is_type=5 \

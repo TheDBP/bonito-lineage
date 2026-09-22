@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-50 patches across 13 upstream projects, applied at build time from
+54 patches across 15 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -446,6 +446,22 @@ just the device tree's `manifest.xml`: `contexthub@1.2` and `health@2.1` came fr
 `hardware/interfaces` fragments and a dry run fed only the device manifest passed while the build
 failed. Take `vendor/etc/vintf/` from the last built `out/` of the same device (any branch) and
 edit that.
+
+### `packages/apps/ElmyraService`
+
+- **0001 stop instead of crashing when there is no context hub** — `onCreate()` indexed
+  `ContextHubManager.getContextHubs()[0]` unchecked. Device patches 0021 and 0027 drop the context
+  hub HAL and the CHRE daemon, so the list is empty and that throws
+  `IndexOutOfBoundsException`; the app is `android:persistent`, so ActivityManager logs
+  `crashed too many times, killing!` and immediately re-adds it, forever. Over 2000 process starts
+  in one session, forking zygote and burning CPU throughout. The patch checks the list and stops
+  the service. `onDestroy()` is guarded too: it unregistered a preference listener the early return
+  never registers, and a receiver only registered when `screenRegistered` is set.
+  Active Edge stays dead either way — the gesture comes from a CHRE nanoapp. The strain gauges are
+  separately visible as `com.google.sensor.elmyra.raw` (MAX11261, continuous 1-100 Hz) via the
+  normal sensors HAL, so a CHRE-free implementation is possible, but it would be `non-wakeUp`:
+  detection only while the AP is awake, which is the part CHRE existed to avoid.
+
 
 ## License
 
