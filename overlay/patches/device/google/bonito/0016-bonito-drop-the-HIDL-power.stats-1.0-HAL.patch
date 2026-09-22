@@ -27,7 +27,7 @@ comes back as its own patch when it is written.
  delete mode 100644 powerstats/service.cpp
 
 diff --git a/device.mk b/device.mk
-index 3a4b3a20..156b67d0 100644
+index 8661d5da..89c6efbf 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -206,10 +206,6 @@ PRODUCT_COPY_FILES += \

@@ -12,7 +12,7 @@ runs in the same domain the device policy already extends.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/device.mk b/device.mk
-index c48215d0..27a44270 100644
+index b377bbfe..a9b1b25f 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -336,7 +336,7 @@ PRODUCT_PACKAGES += \

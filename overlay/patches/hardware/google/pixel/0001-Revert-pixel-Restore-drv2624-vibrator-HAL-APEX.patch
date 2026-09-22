@@ -1,0 +1,4064 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 08:59:49 -0400
+Subject: [PATCH] Revert "pixel: Restore drv2624 vibrator HAL APEX"
+
+This reverts commit 58b562a3, restoring b2e5214f.
+
+Upstream dropped the drv2624 vibrator HAL with "Reason for revert: Only
+used by wahoo and bonito" -- not because anything was wrong with it.
+bonito is one of those two, and it is the Pixel 3a's 2018 haptic driver,
+so without this there is no haptic feedback at all.
+
+This restores the whole set LineageOS themselves curated: vibrator/
+Android.bp with PixelVibratorBinaryDefaults, vibrator/common, and
+vibrator/drv2624. It is the AIDL HAL packaged as the
+com.android.vibrator.drv2624 APEX, the same shape lineage-22.2 ships and
+where haptics work on this device. It declares vibrator AIDL v2 and
+compatibility_matrix.7.xml -- the FCM level this device targets --
+accepts 1-2, so no version bump is needed, and the sepolicy it names
+under hardware/google/pixel-sepolicy/vibrator still exists upstream.
+
+---
+ vibrator/Android.bp                           |  67 +++
+ vibrator/OWNERS                               |   4 +
+ vibrator/common/Android.bp                    |  37 ++
+ vibrator/common/HardwareBase.cpp              | 132 +++++
+ vibrator/common/HardwareBase.h                | 251 +++++++++
+ vibrator/common/utils.h                       | 188 +++++++
+ vibrator/drv2624/Android.bp                   |  62 +++
+ vibrator/drv2624/Hardware.h                   | 149 +++++
+ vibrator/drv2624/TEST_MAPPING                 |  15 +
+ vibrator/drv2624/Vibrator.cpp                 | 451 +++++++++++++++
+ vibrator/drv2624/Vibrator.h                   | 191 +++++++
+ ...droid.hardware.vibrator-service.drv2624.rc |  48 ++
+ ...roid.hardware.vibrator-service.drv2624.xml |   7 +
+ vibrator/drv2624/apex/Android.bp              |  58 ++
+ vibrator/drv2624/apex/apex_manifest.json      |   4 +
+ .../com.android.vibrator.drv2624.enable.rc    |  29 +
+ .../apex/com.android.vibrator.drv2624.pem     |  51 ++
+ .../apex/com.android.vibrator.drv2624.pk8     | Bin 0 -> 2374 bytes
+ .../apex/com.android.vibrator.drv2624.pubkey  | Bin 0 -> 1032 bytes
+ .../apex/com.android.vibrator.drv2624.rc      |  18 +
+ .../com.android.vibrator.drv2624.x509.pem     |  34 ++
+ .../apex/com.android.vibrator.drv2624.xml     |   7 +
+ vibrator/drv2624/apex/file_contexts           |   2 +
+ vibrator/drv2624/apex/key.pem                 |  52 ++
+ vibrator/drv2624/bench/Android.bp             |  33 ++
+ vibrator/drv2624/bench/benchmark.cpp          | 189 +++++++
+ vibrator/drv2624/device.mk                    |   6 +
+ vibrator/drv2624/fuzzer/Android.bp            |  38 ++
+ vibrator/drv2624/fuzzer/fuzzer-vibrator.cpp   |  36 ++
+ vibrator/drv2624/service.cpp                  |  44 ++
+ vibrator/drv2624/tests/Android.bp             |  34 ++
+ vibrator/drv2624/tests/mocks.h                |  65 +++
+ vibrator/drv2624/tests/test-hwapi.cpp         | 405 ++++++++++++++
+ vibrator/drv2624/tests/test-hwcal.cpp         | 394 ++++++++++++++
+ vibrator/drv2624/tests/test-vibrator.cpp      | 515 ++++++++++++++++++
+ vibrator/drv2624/tests/types.h                |  27 +
+ vibrator/drv2624/tests/utils.h                |  27 +
+ 37 files changed, 3670 insertions(+)
+ create mode 100644 vibrator/Android.bp
+ create mode 100644 vibrator/OWNERS
+ create mode 100644 vibrator/common/Android.bp
+ create mode 100644 vibrator/common/HardwareBase.cpp
+ create mode 100644 vibrator/common/HardwareBase.h
+ create mode 100644 vibrator/common/utils.h
+ create mode 100644 vibrator/drv2624/Android.bp
+ create mode 100644 vibrator/drv2624/Hardware.h
+ create mode 100644 vibrator/drv2624/TEST_MAPPING
+ create mode 100644 vibrator/drv2624/Vibrator.cpp
+ create mode 100644 vibrator/drv2624/Vibrator.h
+ create mode 100644 vibrator/drv2624/android.hardware.vibrator-service.drv2624.rc
+ create mode 100644 vibrator/drv2624/android.hardware.vibrator-service.drv2624.xml
+ create mode 100644 vibrator/drv2624/apex/Android.bp
+ create mode 100644 vibrator/drv2624/apex/apex_manifest.json
+ create mode 100644 vibrator/drv2624/apex/com.android.vibrator.drv2624.enable.rc
+ create mode 100644 vibrator/drv2624/apex/com.android.vibrator.drv2624.pem
+ create mode 100644 vibrator/drv2624/apex/com.android.vibrator.drv2624.pk8
+ create mode 100644 vibrator/drv2624/apex/com.android.vibrator.drv2624.pubkey
+ create mode 100644 vibrator/drv2624/apex/com.android.vibrator.drv2624.rc
+ create mode 100644 vibrator/drv2624/apex/com.android.vibrator.drv2624.x509.pem
+ create mode 100644 vibrator/drv2624/apex/com.android.vibrator.drv2624.xml
+ create mode 100644 vibrator/drv2624/apex/file_contexts
+ create mode 100644 vibrator/drv2624/apex/key.pem
+ create mode 100644 vibrator/drv2624/bench/Android.bp
+ create mode 100644 vibrator/drv2624/bench/benchmark.cpp
+ create mode 100644 vibrator/drv2624/device.mk
+ create mode 100644 vibrator/drv2624/fuzzer/Android.bp
+ create mode 100644 vibrator/drv2624/fuzzer/fuzzer-vibrator.cpp
+ create mode 100644 vibrator/drv2624/service.cpp
+ create mode 100644 vibrator/drv2624/tests/Android.bp
+ create mode 100644 vibrator/drv2624/tests/mocks.h
+ create mode 100644 vibrator/drv2624/tests/test-hwapi.cpp
+ create mode 100644 vibrator/drv2624/tests/test-hwcal.cpp
+ create mode 100644 vibrator/drv2624/tests/test-vibrator.cpp
+ create mode 100644 vibrator/drv2624/tests/types.h
+ create mode 100644 vibrator/drv2624/tests/utils.h
+
+diff --git a/vibrator/Android.bp b/vibrator/Android.bp
+new file mode 100644
+index 00000000..a06ec3d4
+--- /dev/null
++++ b/vibrator/Android.bp
+@@ -0,0 +1,67 @@
++//
++// Copyright (C) 2019 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++cc_defaults {
++    name: "PixelVibratorDefaults",
++    relative_install_path: "hw",
++    static_libs: [
++        "PixelVibratorCommon",
++    ],
++    shared_libs: [
++        "libbase",
++        "libbinder_ndk",
++        "libcutils",
++        "libhardware",
++        "liblog",
++        "libutils",
++    ],
++    tidy: true,
++    tidy_checks: [
++        "-*",
++        "clang-analyzer-*",
++        "google-*",
++        "cert*",
++        "misc*",
++        "performance*",
++        "-google-readability*",
++        "-misc-const-correctness",
++        "-misc-non-private-member-variables-in-classes",
++    ],
++    tidy_flags: [
++        "-header-filter=hardware/google/pixel/vibrator*",
++    ],
++}
++
++cc_defaults {
++    name: "PixelVibratorBinaryDefaults",
++    defaults: ["PixelVibratorDefaults"],
++    shared_libs: [
++        "android.hardware.vibrator-V2-ndk",
++    ],
++}
++
++cc_defaults {
++    name: "PixelVibratorTestDefaults",
++    defaults: ["PixelVibratorDefaults"],
++    static_libs: [
++        "android.hardware.vibrator-V2-ndk",
++    ],
++    test_suites: ["device-tests"],
++    require_root: true,
++}
+diff --git a/vibrator/OWNERS b/vibrator/OWNERS
+new file mode 100644
+index 00000000..859c7e07
+--- /dev/null
++++ b/vibrator/OWNERS
+@@ -0,0 +1,4 @@
++chrispaulo@google.com
++michaelwr@google.com
++nathankulczak@google.com
++taikuo@google.com
+diff --git a/vibrator/common/Android.bp b/vibrator/common/Android.bp
+new file mode 100644
+index 00000000..06d58b8a
+--- /dev/null
++++ b/vibrator/common/Android.bp
+@@ -0,0 +1,37 @@
++//
++// Copyright (C) 2019 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++cc_library {
++    name: "PixelVibratorCommon",
++    srcs: [
++        "HardwareBase.cpp",
++    ],
++    shared_libs: [
++        "libbase",
++        "libcutils",
++        "liblog",
++        "libutils",
++    ],
++    cflags: [
++        "-DATRACE_TAG=(ATRACE_TAG_VIBRATOR | ATRACE_TAG_HAL)",
++        "-DLOG_TAG=\"VibratorCommon\"",
++    ],
++    export_include_dirs: ["."],
++    vendor_available: true,
++}
+diff --git a/vibrator/common/HardwareBase.cpp b/vibrator/common/HardwareBase.cpp
+new file mode 100644
+index 00000000..fb15523a
+--- /dev/null
++++ b/vibrator/common/HardwareBase.cpp
+@@ -0,0 +1,132 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include "HardwareBase.h"
++
++#include <cutils/properties.h>
++#include <log/log.h>
++
++#include <fstream>
++#include <sstream>
++
++#include "utils.h"
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++
++HwApiBase::HwApiBase() {
++    mPathPrefix = std::getenv("HWAPI_PATH_PREFIX") ?: "";
++    if (mPathPrefix.empty() && (std::getenv("INPUT_EVENT_NAME") == NULL)) {
++        ALOGE("Failed to get HWAPI path prefix!");
++    }
++}
++
++void HwApiBase::saveName(const std::string &name, const std::ios *stream) {
++    mNames[stream] = name;
++}
++
++void HwApiBase::debug(int fd) {
++    dprintf(fd, "Kernel:\n");
++
++    for (auto &entry : utils::pathsFromEnv("HWAPI_DEBUG_PATHS", mPathPrefix)) {
++        auto &path = entry.first;
++        auto &stream = entry.second;
++        std::string line;
++
++        dprintf(fd, "  %s:\n", path.c_str());
++        while (std::getline(stream, line)) {
++            dprintf(fd, "    %s\n", line.c_str());
++        }
++    }
++
++    mRecordsMutex.lock();
++    dprintf(fd, "  Records:\n");
++    for (auto &r : mRecords) {
++        if (r == nullptr) {
++            continue;
++        }
++        dprintf(fd, "    %s\n", r->toString(mNames).c_str());
++    }
++    mRecordsMutex.unlock();
++}
++
++HwCalBase::HwCalBase() {
++    std::ifstream calfile;
++    auto propertyPrefix = std::getenv("PROPERTY_PREFIX");
++
++    if (propertyPrefix != NULL) {
++        mPropertyPrefix = std::string(propertyPrefix);
++    } else {
++        ALOGE("Failed get property prefix!");
++    }
++
++    utils::fileFromEnv("CALIBRATION_FILEPATH", &calfile);
++
++    for (std::string line; std::getline(calfile, line);) {
++        if (line.empty() || line[0] == '#') {
++            continue;
++        }
++        std::istringstream is_line(line);
++        std::string key, value;
++        if (std::getline(is_line, key, ':') && std::getline(is_line, value)) {
++            mCalData[utils::trim(key)] = utils::trim(value);
++        }
++    }
++}
++
++void HwCalBase::debug(int fd) {
++    std::ifstream stream;
++    std::string path;
++    std::string line;
++    struct context {
++        HwCalBase *obj;
++        int fd;
++    } context{this, fd};
++
++    dprintf(fd, "Properties:\n");
++
++    property_list(
++            [](const char *key, const char *value, void *cookie) {
++                struct context *context = static_cast<struct context *>(cookie);
++                HwCalBase *obj = context->obj;
++                int fd = context->fd;
++                const std::string expect{obj->mPropertyPrefix};
++                const std::string actual{key, std::min(strlen(key), expect.size())};
++                if (actual == expect) {
++                    dprintf(fd, "  %s:\n", key);
++                    dprintf(fd, "    %s\n", value);
++                }
++            },
++            &context);
++
++    dprintf(fd, "\n");
++
++    dprintf(fd, "Persist:\n");
++
++    utils::fileFromEnv("CALIBRATION_FILEPATH", &stream, &path);
++
++    dprintf(fd, "  %s:\n", path.c_str());
++    while (std::getline(stream, line)) {
++        dprintf(fd, "    %s\n", line.c_str());
++    }
++}
++
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/vibrator/common/HardwareBase.h b/vibrator/common/HardwareBase.h
+new file mode 100644
+index 00000000..d038c198
+--- /dev/null
++++ b/vibrator/common/HardwareBase.h
+@@ -0,0 +1,251 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#pragma once
++
++#include <android-base/stringprintf.h>
++#include <android-base/unique_fd.h>
++#include <log/log.h>
++#include <sys/epoll.h>
++#include <utils/Trace.h>
++
++#include <chrono>
++#include <list>
++#include <map>
++#include <sstream>
++#include <string>
++#include <type_traits>
++
++#include "utils.h"
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++
++using ::android::base::StringPrintf;
++using ::android::base::unique_fd;
++
++class HwApiBase {
++  private:
++    using NamesMap = std::map<const std::ios *, std::string>;
++
++    class RecordInterface {
++      public:
++        virtual std::string toString(const NamesMap &names) = 0;
++        virtual ~RecordInterface() {}
++    };
++    template <typename T>
++    class Record : public RecordInterface {
++      public:
++        Record(const char *func, const T &value, const std::ios *stream)
++            : mFunc(func),
++              mValue(value),
++              mStream(stream),
++              mTp(std::chrono::system_clock::system_clock::now()) {}
++        std::string toString(const NamesMap &names) override;
++
++      private:
++        const char *mFunc;
++        const T mValue;
++        const std::ios *mStream;
++        const std::chrono::system_clock::time_point mTp;
++    };
++    using Records = std::list<std::unique_ptr<RecordInterface>>;
++
++    static constexpr uint32_t RECORDS_SIZE = 2048;
++
++  public:
++    HwApiBase();
++    void debug(int fd);
++
++  protected:
++    void updatePathPrefix(const std::string &prefix) {
++        ALOGI("Update HWAPI path prefix to %s", prefix.c_str());
++        mPathPrefix = prefix;
++    }
++    void saveName(const std::string &name, const std::ios *stream);
++    template <typename T>
++    void open(const std::string &name, T *stream);
++    template <typename T>
++    bool has(const T &stream);
++    template <typename T>
++    bool get(T *value, std::istream *stream);
++    template <typename T>
++    bool set(const T &value, std::ostream *stream);
++    template <typename T>
++    bool poll(const T &value, std::istream *stream, const int32_t timeout = -1);
++    template <typename T>
++    void record(const char *func, const T &value, const std::ios *stream);
++
++  private:
++    std::string mPathPrefix;
++    NamesMap mNames;
++    Records mRecords{RECORDS_SIZE};
++    std::mutex mRecordsMutex;
++    std::mutex mIoMutex;
++};
++
++#define HWAPI_RECORD(args...) HwApiBase::record(__FUNCTION__, ##args)
++
++template <typename T>
++void HwApiBase::open(const std::string &name, T *stream) {
++    saveName(name, stream);
++    utils::openNoCreate(mPathPrefix + name, stream);
++}
++
++template <typename T>
++bool HwApiBase::has(const T &stream) {
++    if constexpr (std::is_same<T, std::fstream>::value || std::is_same<T, std::ofstream>::value ||
++                  std::is_same<T, std::ifstream>::value)
++        return stream.is_open() && !stream.fail();
++
++    ALOGE("File stream is not of the correct type");
++    return false;
++}
++
++template <typename T>
++bool HwApiBase::get(T *value, std::istream *stream) {
++    ATRACE_NAME("HwApi::get");
++    std::scoped_lock ioLock{mIoMutex};
++    bool ret;
++    stream->seekg(0);
++    *stream >> *value;
++    if (!(ret = !!*stream)) {
++        ALOGE("Failed to read %s (%d): %s", mNames[stream].c_str(), errno, strerror(errno));
++    }
++    stream->clear();
++    HWAPI_RECORD(*value, stream);
++    return ret;
++}
++
++template <typename T>
++bool HwApiBase::set(const T &value, std::ostream *stream) {
++    ATRACE_NAME("HwApi::set");
++    using utils::operator<<;
++    std::scoped_lock ioLock{mIoMutex};
++    bool ret;
++    *stream << value << std::endl;
++    if (!(ret = !!*stream)) {
++        ALOGE("Failed to write %s (%d): %s", mNames[stream].c_str(), errno, strerror(errno));
++        stream->clear();
++    }
++    HWAPI_RECORD(value, stream);
++    return ret;
++}
++
++template <typename T>
++bool HwApiBase::poll(const T &value, std::istream *stream, const int32_t timeoutMs) {
++    ATRACE_NAME(StringPrintf("HwApi::poll %s==%s", mNames[stream].c_str(),
++                             std::to_string(value).c_str())
++                        .c_str());
++    auto path = mPathPrefix + mNames[stream];
++    unique_fd fileFd{::open(path.c_str(), O_RDONLY)};
++    unique_fd epollFd{epoll_create(1)};
++    epoll_event event = {
++            .events = EPOLLPRI | EPOLLET,
++    };
++    T actual;
++    bool ret;
++    int epollRet;
++
++    if (timeoutMs < -1) {
++        ALOGE("Invalid polling timeout!");
++        return false;
++    }
++
++    if (epoll_ctl(epollFd, EPOLL_CTL_ADD, fileFd, &event)) {
++        ALOGE("Failed to poll %s (%d): %s", mNames[stream].c_str(), errno, strerror(errno));
++        return false;
++    }
++
++    while ((ret = get(&actual, stream)) && (actual != value)) {
++        epollRet = epoll_wait(epollFd, &event, 1, timeoutMs);
++        if (epollRet <= 0) {
++            ALOGE("Polling error or timeout! (%d)", epollRet);
++            return false;
++        }
++    }
++
++    HWAPI_RECORD(value, stream);
++    return ret;
++}
++
++template <typename T>
++void HwApiBase::record(const char *func, const T &value, const std::ios *stream) {
++    std::lock_guard<std::mutex> lock(mRecordsMutex);
++    mRecords.emplace_back(std::make_unique<Record<T>>(func, value, stream));
++    mRecords.pop_front();
++}
++
++template <typename T>
++std::string HwApiBase::Record<T>::toString(const NamesMap &names) {
++    using utils::operator<<;
++    std::stringstream ret;
++    auto lTp = std::chrono::system_clock::to_time_t(mTp);
++    struct tm buf;
++    auto lTime = localtime_r(&lTp, &buf);
++
++    ret << std::put_time(lTime, "%Y-%m-%d %H:%M:%S.") << std::setfill('0') << std::setw(3)
++        << (std::chrono::duration_cast<std::chrono::milliseconds>(mTp.time_since_epoch()) % 1000)
++                    .count()
++        << "    " << mFunc << " '" << names.at(mStream) << "' = '" << mValue << "'";
++    return ret.str();
++}
++
++class HwCalBase {
++  public:
++    HwCalBase();
++    void debug(int fd);
++
++  protected:
++    template <typename T>
++    bool getProperty(const char *key, T *value, const T defval);
++    template <typename T>
++    bool getPersist(const char *key, T *value);
++
++  private:
++    std::string mPropertyPrefix;
++    std::map<std::string, std::string> mCalData;
++};
++
++template <typename T>
++bool HwCalBase::getProperty(const char *key, T *outval, const T defval) {
++    ATRACE_NAME("HwCal::getProperty");
++    *outval = utils::getProperty(mPropertyPrefix + key, defval);
++    return true;
++}
++
++template <typename T>
++bool HwCalBase::getPersist(const char *key, T *value) {
++    ATRACE_NAME("HwCal::getPersist");
++    auto it = mCalData.find(key);
++    if (it == mCalData.end()) {
++        ALOGE("Missing %s config!", key);
++        return false;
++    }
++    std::stringstream stream{it->second};
++    utils::unpack(stream, value);
++    if (!stream || !stream.eof()) {
++        ALOGE("Invalid %s config!", key);
++        return false;
++    }
++    return true;
++}
++
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/vibrator/common/utils.h b/vibrator/common/utils.h
+new file mode 100644
+index 00000000..b5005a6f
+--- /dev/null
++++ b/vibrator/common/utils.h
+@@ -0,0 +1,188 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#pragma once
++
++#include <android-base/macros.h>
++#include <android-base/parsedouble.h>
++#include <android-base/properties.h>
++#include <log/log.h>
++
++#include <fstream>
++#include <map>
++#include <sstream>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++namespace utils {
++
++template <typename T>
++class Is_Iterable {
++  private:
++    template <typename U>
++    static std::true_type test(typename U::iterator *u);
++
++    template <typename U>
++    static std::false_type test(U *u);
++
++  public:
++    static const bool value = decltype(test<T>(0))::value;
++};
++
++template <typename T, bool B>
++using Enable_If_Iterable = std::enable_if_t<Is_Iterable<T>::value == B>;
++
++template <typename T, typename U = void>
++using Enable_If_Signed = std::enable_if_t<std::is_signed_v<T>, U>;
++
++template <typename T, typename U = void>
++using Enable_If_Unsigned = std::enable_if_t<std::is_unsigned_v<T>, U>;
++
++// override for default behavior of printing as a character
++inline std::ostream &operator<<(std::ostream &stream, const int8_t value) {
++    return stream << +value;
++}
++// override for default behavior of printing as a character
++inline std::ostream &operator<<(std::ostream &stream, const uint8_t value) {
++    return stream << +value;
++}
++
++template <typename T>
++inline auto toUnderlying(const T value) {
++    return static_cast<std::underlying_type_t<T>>(value);
++}
++
++template <typename T>
++inline Enable_If_Iterable<T, true> unpack(std::istream &stream, T *value) {
++    for (auto &entry : *value) {
++        stream >> entry;
++    }
++}
++
++template <typename T>
++inline Enable_If_Iterable<T, false> unpack(std::istream &stream, T *value) {
++    stream >> *value;
++}
++
++template <>
++inline void unpack<std::string>(std::istream &stream, std::string *value) {
++    *value = std::string(std::istreambuf_iterator(stream), {});
++    stream.setstate(std::istream::eofbit);
++}
++
++template <typename T>
++inline Enable_If_Signed<T, T> getProperty(const std::string &key, const T def) {
++    if (std::is_floating_point_v<T>) {
++        float result;
++        std::string value = ::android::base::GetProperty(key, "");
++        if (!value.empty() && ::android::base::ParseFloat(value, &result)) {
++            return result;
++        }
++        return def;
++    } else {
++        return ::android::base::GetIntProperty(key, def);
++    }
++}
++
++template <typename T>
++inline Enable_If_Unsigned<T, T> getProperty(const std::string &key, const T def) {
++    return ::android::base::GetUintProperty(key, def);
++}
++
++template <typename T, size_t N>
++inline std::array<T, N> getProperty(const std::string &key, const std::array<T, N> &def) {
++    std::string value = ::android::base::GetProperty(key, "");
++    if (!value.empty()) {
++        std::array<T, N> result{0};
++        std::stringstream stream{value};
++        utils::unpack(stream, &result);
++        if (stream && stream.eof())
++            return result;
++    }
++    return def;
++}
++
++template <>
++inline bool getProperty<bool>(const std::string &key, const bool def) {
++    return ::android::base::GetBoolProperty(key, def);
++}
++
++template <typename T>
++static void openNoCreate(const std::string &file, T *outStream) {
++    if (!std::filesystem::exists(file)) {
++        ALOGE("File does not exist: %s", file.c_str());
++        return;
++    }
++
++    outStream->open(file);
++    if (!*outStream) {
++        ALOGE("Failed to open %s (%d): %s", file.c_str(), errno, strerror(errno));
++    }
++}
++
++template <typename T>
++static void fileFromEnv(const char *env, T *outStream, std::string *outName = nullptr) {
++    auto file = std::getenv(env);
++
++    if (file == nullptr) {
++        ALOGE("Failed get env %s", env);
++        return;
++    }
++
++    if (outName != nullptr) {
++        *outName = std::string(file);
++    }
++
++    openNoCreate(file, outStream);
++}
++
++static ATTRIBUTE_UNUSED auto pathsFromEnv(const char *env, const std::string &prefix = "") {
++    std::map<std::string, std::ifstream> ret;
++    auto value = std::getenv(env);
++
++    if (value == nullptr) {
++        return ret;
++    }
++
++    std::istringstream paths{value};
++    std::string path;
++
++    while (paths >> path) {
++        ret[path].open(prefix + path);
++    }
++
++    return ret;
++}
++
++static ATTRIBUTE_UNUSED std::string trim(const std::string &str,
++                                         const std::string &whitespace = " \t") {
++    const auto str_begin = str.find_first_not_of(whitespace);
++    if (str_begin == std::string::npos) {
++        return "";
++    }
++
++    const auto str_end = str.find_last_not_of(whitespace);
++    const auto str_range = str_end - str_begin + 1;
++
++    return str.substr(str_begin, str_range);
++}
++
++}  // namespace utils
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/vibrator/drv2624/Android.bp b/vibrator/drv2624/Android.bp
+new file mode 100644
+index 00000000..508b82bf
+--- /dev/null
++++ b/vibrator/drv2624/Android.bp
+@@ -0,0 +1,62 @@
++//
++// Copyright (C) 2017 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++cc_defaults {
++    name: "android.hardware.vibrator-defaults.drv2624",
++    cflags: [
++        "-DATRACE_TAG=(ATRACE_TAG_VIBRATOR | ATRACE_TAG_HAL)",
++        "-DLOG_TAG=\"Vibrator\"",
++    ],
++}
++
++cc_defaults {
++    name: "VibratorHalDrv2624BinaryDefaults",
++    defaults: [
++        "PixelVibratorBinaryDefaults",
++        "android.hardware.vibrator-defaults.drv2624",
++    ],
++}
++
++cc_defaults {
++    name: "VibratorHalDrv2624TestDefaults",
++    defaults: [
++        "PixelVibratorTestDefaults",
++        "android.hardware.vibrator-defaults.drv2624",
++    ],
++    static_libs: ["android.hardware.vibrator-impl.drv2624"],
++}
++
++cc_library {
++    name: "android.hardware.vibrator-impl.drv2624",
++    defaults: ["VibratorHalDrv2624BinaryDefaults"],
++    srcs: ["Vibrator.cpp"],
++    export_include_dirs: ["."],
++    vendor_available: true,
++    visibility: [":__subpackages__"],
++}
++
++cc_binary {
++    name: "android.hardware.vibrator-service.drv2624",
++    defaults: ["VibratorHalDrv2624BinaryDefaults"],
++    init_rc: ["android.hardware.vibrator-service.drv2624.rc"],
++    vintf_fragments: ["android.hardware.vibrator-service.drv2624.xml"],
++    srcs: ["service.cpp"],
++    static_libs: ["android.hardware.vibrator-impl.drv2624"],
++    proprietary: true,
++}
+diff --git a/vibrator/drv2624/Hardware.h b/vibrator/drv2624/Hardware.h
+new file mode 100644
+index 00000000..0588e2b0
+--- /dev/null
++++ b/vibrator/drv2624/Hardware.h
+@@ -0,0 +1,149 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#pragma once
++
++#include "HardwareBase.h"
++#include "Vibrator.h"
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++
++class HwApi : public Vibrator::HwApi, private HwApiBase {
++  public:
++    static std::unique_ptr<HwApi> Create() {
++        auto hwapi = std::unique_ptr<HwApi>(new HwApi());
++        // the following streams are required
++        if (!hwapi->mActivate.is_open() || !hwapi->mDuration.is_open() ||
++            !hwapi->mState.is_open()) {
++            return nullptr;
++        }
++        return hwapi;
++    }
++
++    bool setAutocal(std::string value) override { return set(value, &mAutocal); }
++    bool setOlLraPeriod(uint32_t value) override { return set(value, &mOlLraPeriod); }
++    bool setActivate(bool value) override { return set(value, &mActivate); }
++    bool setDuration(uint32_t value) override { return set(value, &mDuration); }
++    bool setState(bool value) override { return set(value, &mState); }
++    bool hasRtpInput() override { return has(mRtpInput); }
++    bool setRtpInput(int8_t value) override { return set(value, &mRtpInput); }
++    bool setMode(std::string value) override { return set(value, &mMode); }
++    bool setSequencer(std::string value) override { return set(value, &mSequencer); }
++    bool setScale(uint8_t value) override { return set(value, &mScale); }
++    bool setCtrlLoop(bool value) override { return set(value, &mCtrlLoop); }
++    bool setLpTriggerEffect(uint32_t value) override { return set(value, &mLpTriggerEffect); }
++    bool setLpTriggerScale(uint8_t value) override { return set(value, &mLpTriggerScale); }
++    bool setLraWaveShape(uint32_t value) override { return set(value, &mLraWaveShape); }
++    bool setOdClamp(uint32_t value) override { return set(value, &mOdClamp); }
++    void debug(int fd) override { HwApiBase::debug(fd); }
++
++  private:
++    HwApi() {
++        open("device/autocal", &mAutocal);
++        open("device/ol_lra_period", &mOlLraPeriod);
++        open("activate", &mActivate);
++        open("duration", &mDuration);
++        open("state", &mState);
++        open("device/rtp_input", &mRtpInput);
++        open("device/mode", &mMode);
++        open("device/set_sequencer", &mSequencer);
++        open("device/scale", &mScale);
++        open("device/ctrl_loop", &mCtrlLoop);
++        open("device/lp_trigger_effect", &mLpTriggerEffect);
++        open("device/lp_trigger_scale", &mLpTriggerScale);
++        open("device/lra_wave_shape", &mLraWaveShape);
++        open("device/od_clamp", &mOdClamp);
++    }
++
++  private:
++    std::ofstream mAutocal;
++    std::ofstream mOlLraPeriod;
++    std::ofstream mActivate;
++    std::ofstream mDuration;
++    std::ofstream mState;
++    std::ofstream mRtpInput;
++    std::ofstream mMode;
++    std::ofstream mSequencer;
++    std::ofstream mScale;
++    std::ofstream mCtrlLoop;
++    std::ofstream mLpTriggerEffect;
++    std::ofstream mLpTriggerScale;
++    std::ofstream mLraWaveShape;
++    std::ofstream mOdClamp;
++};
++
++class HwCal : public Vibrator::HwCal, private HwCalBase {
++  private:
++    static constexpr char AUTOCAL_CONFIG[] = "autocal";
++    static constexpr char LRA_PERIOD_CONFIG[] = "lra_period";
++
++    static constexpr uint32_t WAVEFORM_CLICK_EFFECT_MS = 6;
++    static constexpr uint32_t WAVEFORM_TICK_EFFECT_MS = 2;
++    static constexpr uint32_t WAVEFORM_DOUBLE_CLICK_EFFECT_MS = 135;
++    static constexpr uint32_t WAVEFORM_HEAVY_CLICK_EFFECT_MS = 8;
++
++    static constexpr uint32_t DEFAULT_LRA_PERIOD = 262;
++    static constexpr uint32_t DEFAULT_FREQUENCY_SHIFT = 10;
++    static constexpr uint32_t DEFAULT_VOLTAGE_MAX = 107;  // 2.15V;
++
++  public:
++    HwCal() {}
++
++    bool getAutocal(std::string *value) override { return getPersist(AUTOCAL_CONFIG, value); }
++    bool getLraPeriod(uint32_t *value) override {
++        if (getPersist(LRA_PERIOD_CONFIG, value)) {
++            return true;
++        }
++        *value = DEFAULT_LRA_PERIOD;
++        return true;
++    }
++    bool getCloseLoopThreshold(uint32_t *value) override {
++        return getProperty("closeloop.threshold", value, UINT32_MAX);
++        return true;
++    }
++    bool getDynamicConfig(bool *value) override {
++        return getProperty("config.dynamic", value, false);
++    }
++    bool getLongFrequencyShift(uint32_t *value) override {
++        return getProperty("long.frequency.shift", value, DEFAULT_FREQUENCY_SHIFT);
++    }
++    bool getShortVoltageMax(uint32_t *value) override {
++        return getProperty("short.voltage", value, DEFAULT_VOLTAGE_MAX);
++    }
++    bool getLongVoltageMax(uint32_t *value) override {
++        return getProperty("long.voltage", value, DEFAULT_VOLTAGE_MAX);
++    }
++    bool getClickDuration(uint32_t *value) override {
++        return getProperty("click.duration", value, WAVEFORM_CLICK_EFFECT_MS);
++    }
++    bool getTickDuration(uint32_t *value) override {
++        return getProperty("tick.duration", value, WAVEFORM_TICK_EFFECT_MS);
++    }
++    bool getDoubleClickDuration(uint32_t *value) override {
++        return getProperty("double_click.duration", value, WAVEFORM_DOUBLE_CLICK_EFFECT_MS);
++    }
++    bool getHeavyClickDuration(uint32_t *value) override {
++        return getProperty("heavyclick.duration", value, WAVEFORM_HEAVY_CLICK_EFFECT_MS);
++    }
++    void debug(int fd) override { HwCalBase::debug(fd); }
++};
++
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/vibrator/drv2624/TEST_MAPPING b/vibrator/drv2624/TEST_MAPPING
+new file mode 100644
+index 00000000..ec34f66b
+--- /dev/null
++++ b/vibrator/drv2624/TEST_MAPPING
+@@ -0,0 +1,15 @@
++{
++  "presubmit": [
++    {
++      "name": "VibratorHalDrv2624TestSuite"
++    }
++  ],
++  "postsubmit": [
++    {
++      "name": "VibratorHalDrv2624Benchmark",
++      "keywords": [
++        "primary-device"
++      ]
++    }
++  ]
++}
+diff --git a/vibrator/drv2624/Vibrator.cpp b/vibrator/drv2624/Vibrator.cpp
+new file mode 100644
+index 00000000..213fc675
+--- /dev/null
++++ b/vibrator/drv2624/Vibrator.cpp
+@@ -0,0 +1,451 @@
++/*
++ * Copyright (C) 2017 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++
++#include "Vibrator.h"
++#include "utils.h"
++
++#include <cutils/properties.h>
++#include <hardware/hardware.h>
++#include <hardware/vibrator.h>
++#include <log/log.h>
++#include <utils/Trace.h>
++
++#include <cinttypes>
++#include <cmath>
++#include <fstream>
++#include <iostream>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++
++static constexpr int8_t MAX_RTP_INPUT = 127;
++static constexpr int8_t MIN_RTP_INPUT = 0;
++
++static constexpr char RTP_MODE[] = "rtp";
++static constexpr char WAVEFORM_MODE[] = "waveform";
++
++// Use effect #1 in the waveform library for CLICK effect
++static constexpr uint8_t WAVEFORM_CLICK_EFFECT_INDEX = 1;
++
++// Use effect #2 in the waveform library for TICK effect
++static constexpr char WAVEFORM_TICK_EFFECT_INDEX = 2;
++
++// Use effect #3 in the waveform library for DOUBLE_CLICK effect
++static constexpr char WAVEFORM_DOUBLE_CLICK_EFFECT_INDEX = 3;
++
++// Use effect #4 in the waveform library for HEAVY_CLICK effect
++static constexpr char WAVEFORM_HEAVY_CLICK_EFFECT_INDEX = 4;
++
++static std::uint32_t freqPeriodFormula(std::uint32_t in) {
++    return 1000000000 / (24615 * in);
++}
++
++static float freqPeriodFormulaFloat(std::uint32_t in) {
++    return static_cast<float>(1000000000) / static_cast<float>(24615 * in);
++}
++
++using utils::toUnderlying;
++
++Vibrator::Vibrator(std::unique_ptr<HwApi> hwapi, std::unique_ptr<HwCal> hwcal)
++    : mHwApi(std::move(hwapi)), mHwCal(std::move(hwcal)) {
++    std::string autocal;
++    uint32_t lraPeriod;
++    bool dynamicConfig;
++
++    if (!mHwApi->setState(true)) {
++        ALOGE("Failed to set state (%d): %s", errno, strerror(errno));
++    }
++
++    if (mHwCal->getAutocal(&autocal)) {
++        mHwApi->setAutocal(autocal);
++    }
++    mHwCal->getLraPeriod(&lraPeriod);
++
++    mHwCal->getCloseLoopThreshold(&mCloseLoopThreshold);
++    mHwCal->getDynamicConfig(&dynamicConfig);
++
++    if (dynamicConfig) {
++        uint32_t longFreqencyShift;
++        uint32_t shortVoltageMax, longVoltageMax;
++
++        mHwCal->getLongFrequencyShift(&longFreqencyShift);
++        mHwCal->getShortVoltageMax(&shortVoltageMax);
++        mHwCal->getLongVoltageMax(&longVoltageMax);
++
++        mEffectConfig.reset(new VibrationConfig({
++                .shape = WaveShape::SINE,
++                .odClamp = shortVoltageMax,
++                .olLraPeriod = lraPeriod,
++        }));
++        mSteadyConfig.reset(new VibrationConfig({
++                .shape = WaveShape::SQUARE,
++                .odClamp = longVoltageMax,
++                // 1. Change long lra period to frequency
++                // 2. Get frequency': subtract the frequency shift from the frequency
++                // 3. Get final long lra period after put the frequency' to formula
++                .olLraPeriod = freqPeriodFormula(freqPeriodFormula(lraPeriod) - longFreqencyShift),
++        }));
++    } else {
++        mHwApi->setOlLraPeriod(lraPeriod);
++    }
++
++    mHwCal->getClickDuration(&mClickDuration);
++    mHwCal->getTickDuration(&mTickDuration);
++    mHwCal->getDoubleClickDuration(&mDoubleClickDuration);
++    mHwCal->getHeavyClickDuration(&mHeavyClickDuration);
++}
++
++ndk::ScopedAStatus Vibrator::getCapabilities(int32_t *_aidl_return) {
++    ATRACE_NAME("Vibrator::getCapabilities");
++    int32_t ret = IVibrator::CAP_ALWAYS_ON_CONTROL | IVibrator::CAP_GET_RESONANT_FREQUENCY;
++    if (mHwApi->hasRtpInput()) {
++        ret |= IVibrator::CAP_AMPLITUDE_CONTROL;
++    }
++    *_aidl_return = ret;
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::on(uint32_t timeoutMs, const char mode[],
++                                const std::unique_ptr<VibrationConfig> &config) {
++    LoopControl loopMode = LoopControl::OPEN;
++
++    // Open-loop mode is used for short click for over-drive
++    // Close-loop mode is used for long notification for stability
++    if (mode == RTP_MODE && timeoutMs > mCloseLoopThreshold) {
++        loopMode = LoopControl::CLOSE;
++    }
++
++    mHwApi->setCtrlLoop(toUnderlying(loopMode));
++    if (!mHwApi->setDuration(timeoutMs)) {
++        ALOGE("Failed to set duration (%d): %s", errno, strerror(errno));
++        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
++    }
++
++    mHwApi->setMode(mode);
++    if (config != nullptr) {
++        mHwApi->setLraWaveShape(toUnderlying(config->shape));
++        mHwApi->setOdClamp(config->odClamp);
++        mHwApi->setOlLraPeriod(config->olLraPeriod);
++    }
++
++    if (!mHwApi->setActivate(1)) {
++        ALOGE("Failed to activate (%d): %s", errno, strerror(errno));
++        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
++    }
++
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::on(int32_t timeoutMs,
++                                const std::shared_ptr<IVibratorCallback> &callback) {
++    ATRACE_NAME("Vibrator::on");
++    if (callback) {
++        return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++    }
++    return on(timeoutMs, RTP_MODE, mSteadyConfig);
++}
++
++ndk::ScopedAStatus Vibrator::off() {
++    ATRACE_NAME("Vibrator::off");
++    if (!mHwApi->setActivate(0)) {
++        ALOGE("Failed to turn vibrator off (%d): %s", errno, strerror(errno));
++        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
++    }
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::setAmplitude(float amplitude) {
++    ATRACE_NAME("Vibrator::setAmplitude");
++    if (amplitude <= 0.0f || amplitude > 1.0f) {
++        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
++    }
++
++    int32_t rtp_input = std::round(amplitude * (MAX_RTP_INPUT - MIN_RTP_INPUT) + MIN_RTP_INPUT);
++
++    if (!mHwApi->setRtpInput(rtp_input)) {
++        ALOGE("Failed to set amplitude (%d): %s", errno, strerror(errno));
++        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
++    }
++
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::setExternalControl(bool enabled) {
++    ATRACE_NAME("Vibrator::setExternalControl");
++    ALOGE("Not support in DRV2624 solution, %d", enabled);
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++binder_status_t Vibrator::dump(int fd, const char **args, uint32_t numArgs) {
++    if (fd < 0) {
++        ALOGE("Called debug() with invalid fd.");
++        return STATUS_OK;
++    }
++
++    (void)args;
++    (void)numArgs;
++
++    dprintf(fd, "AIDL:\n");
++
++    dprintf(fd, "  Close Loop Thresh: %" PRIu32 "\n", mCloseLoopThreshold);
++    if (mSteadyConfig) {
++        dprintf(fd, "  Steady Shape: %" PRIu32 "\n", mSteadyConfig->shape);
++        dprintf(fd, "  Steady OD Clamp: %" PRIu32 "\n", mSteadyConfig->odClamp);
++        dprintf(fd, "  Steady OL LRA Period: %" PRIu32 "\n", mSteadyConfig->olLraPeriod);
++    }
++    if (mEffectConfig) {
++        dprintf(fd, "  Effect Shape: %" PRIu32 "\n", mEffectConfig->shape);
++        dprintf(fd, "  Effect OD Clamp: %" PRIu32 "\n", mEffectConfig->odClamp);
++        dprintf(fd, "  Effect OL LRA Period: %" PRIu32 "\n", mEffectConfig->olLraPeriod);
++    }
++    dprintf(fd, "  Click Duration: %" PRIu32 "\n", mClickDuration);
++    dprintf(fd, "  Tick Duration: %" PRIu32 "\n", mTickDuration);
++    dprintf(fd, "  Double Click Duration: %" PRIu32 "\n", mDoubleClickDuration);
++    dprintf(fd, "  Heavy Click Duration: %" PRIu32 "\n", mHeavyClickDuration);
++
++    dprintf(fd, "\n");
++
++    mHwApi->debug(fd);
++
++    dprintf(fd, "\n");
++
++    mHwCal->debug(fd);
++
++    fsync(fd);
++    return STATUS_OK;
++}
++
++ndk::ScopedAStatus Vibrator::getSupportedEffects(std::vector<Effect> *_aidl_return) {
++    *_aidl_return = {Effect::TEXTURE_TICK, Effect::TICK, Effect::CLICK, Effect::HEAVY_CLICK,
++                     Effect::DOUBLE_CLICK};
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::perform(Effect effect, EffectStrength strength,
++                                     const std::shared_ptr<IVibratorCallback> &callback,
++                                     int32_t *_aidl_return) {
++    ATRACE_NAME("Vibrator::perform");
++    ndk::ScopedAStatus status;
++
++    if (callback) {
++        status = ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++    } else {
++        status = performEffect(effect, strength, _aidl_return);
++    }
++
++    return status;
++}
++
++static ndk::ScopedAStatus convertEffectStrength(EffectStrength strength, uint8_t *outScale) {
++    uint8_t scale;
++
++    switch (strength) {
++        case EffectStrength::LIGHT:
++            scale = 2;  // 50%
++            break;
++        case EffectStrength::MEDIUM:
++        case EffectStrength::STRONG:
++            scale = 0;  // 100%
++            break;
++        default:
++            return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++    }
++
++    *outScale = scale;
++
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::getEffectDetails(Effect effect, uint8_t *outIndex,
++                                              uint32_t *outTimeMs) {
++    switch (effect) {
++        case Effect::TEXTURE_TICK:
++            *outIndex = WAVEFORM_TICK_EFFECT_INDEX;
++            *outTimeMs = mTickDuration;
++            break;
++        case Effect::CLICK:
++            *outIndex = WAVEFORM_CLICK_EFFECT_INDEX;
++            *outTimeMs = mClickDuration;
++            break;
++        case Effect::DOUBLE_CLICK:
++            *outIndex = WAVEFORM_DOUBLE_CLICK_EFFECT_INDEX;
++            *outTimeMs = mDoubleClickDuration;
++            break;
++        case Effect::TICK:
++            *outIndex = WAVEFORM_TICK_EFFECT_INDEX;
++            *outTimeMs = mTickDuration;
++            break;
++        case Effect::HEAVY_CLICK:
++            *outIndex = WAVEFORM_HEAVY_CLICK_EFFECT_INDEX;
++            *outTimeMs = mHeavyClickDuration;
++            break;
++        default:
++            return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++    }
++
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::performEffect(Effect effect, EffectStrength strength,
++                                           int32_t *outTimeMs) {
++    ndk::ScopedAStatus status;
++    uint8_t index;
++    uint32_t timeMS;
++    uint8_t scale;
++
++    status = getEffectDetails(effect, &index, &timeMS);
++    if (!status.isOk()) {
++        return status;
++    }
++
++    status = convertEffectStrength(strength, &scale);
++    if (!status.isOk()) {
++        return status;
++    }
++
++    mHwApi->setSequencer(std::to_string(index) + " 0");
++    mHwApi->setScale(scale);
++    status = on(timeMS, WAVEFORM_MODE, mEffectConfig);
++    if (!status.isOk()) {
++        return status;
++    }
++
++    *outTimeMs = timeMS;
++
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::getSupportedAlwaysOnEffects(std::vector<Effect> *_aidl_return) {
++    *_aidl_return = {
++            Effect::CLICK,       Effect::DOUBLE_CLICK, Effect::TICK,
++            Effect::HEAVY_CLICK, Effect::TEXTURE_TICK,
++    };
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::alwaysOnEnable(int32_t id, Effect effect, EffectStrength strength) {
++    if (id != 0) {
++        return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++    }
++
++    ndk::ScopedAStatus status;
++    uint8_t index;
++    uint32_t timeMs;
++    uint8_t scale;
++
++    status = getEffectDetails(effect, &index, &timeMs);
++    if (!status.isOk()) {
++        return status;
++    }
++
++    status = convertEffectStrength(strength, &scale);
++    if (!status.isOk()) {
++        return status;
++    }
++
++    if (!mHwApi->setLpTriggerEffect(index)) {
++        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
++    }
++
++    if (!mHwApi->setLpTriggerScale(scale)) {
++        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
++    }
++
++    return ndk::ScopedAStatus::ok();
++}
++ndk::ScopedAStatus Vibrator::alwaysOnDisable(int32_t id) {
++    if (id != 0) {
++        return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++    }
++
++    mHwApi->setLpTriggerEffect(0);
++
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::getCompositionDelayMax(int32_t * /*maxDelayMs*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getCompositionSizeMax(int32_t * /*maxSize*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getSupportedPrimitives(
++        std::vector<CompositePrimitive> * /*supported*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getPrimitiveDuration(CompositePrimitive /*primitive*/,
++                                                  int32_t * /*durationMs*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::compose(const std::vector<CompositeEffect> & /*composite*/,
++                                     const std::shared_ptr<IVibratorCallback> & /*callback*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getResonantFrequency(float *resonantFreqHz) {
++    uint32_t lraPeriod;
++    if(!mHwCal->getLraPeriod(&lraPeriod)) {
++        ALOGE("Failed to get resonant frequency (%d): %s", errno, strerror(errno));
++        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
++    }
++    *resonantFreqHz = freqPeriodFormulaFloat(lraPeriod);
++    return ndk::ScopedAStatus::ok();
++}
++
++ndk::ScopedAStatus Vibrator::getQFactor(float * /*qFactor*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getFrequencyResolution(float * /*freqResolutionHz*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getFrequencyMinimum(float * /*freqMinimumHz*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getBandwidthAmplitudeMap(std::vector<float> * /*_aidl_return*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getPwlePrimitiveDurationMax(int32_t * /*durationMs*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getPwleCompositionSizeMax(int32_t * /*maxSize*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::getSupportedBraking(std::vector<Braking> * /*supported*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++ndk::ScopedAStatus Vibrator::composePwle(const std::vector<PrimitivePwle> & /*composite*/,
++                                         const std::shared_ptr<IVibratorCallback> & /*callback*/) {
++    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
++}
++
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/vibrator/drv2624/Vibrator.h b/vibrator/drv2624/Vibrator.h
+new file mode 100644
+index 00000000..5f81ee38
+--- /dev/null
++++ b/vibrator/drv2624/Vibrator.h
+@@ -0,0 +1,191 @@
++/*
++ * Copyright (C) 2017 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#pragma once
++
++#include <aidl/android/hardware/vibrator/BnVibrator.h>
++
++#include <fstream>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++
++class Vibrator : public BnVibrator {
++  public:
++    // APIs for interfacing with the kernel driver.
++    class HwApi {
++      public:
++        virtual ~HwApi() = default;
++        // Stores the COMP, BEMF, and GAIN calibration values to use.
++        //   <COMP> <BEMF> <GAIN>
++        virtual bool setAutocal(std::string value) = 0;
++        // Stores the open-loop LRA frequency to be used.
++        virtual bool setOlLraPeriod(uint32_t value) = 0;
++        // Activates/deactivates the vibrator for durations specified by
++        // setDuration().
++        virtual bool setActivate(bool value) = 0;
++        // Specifies the vibration duration in milliseconds.
++        virtual bool setDuration(uint32_t value) = 0;
++        // Specifies the active state of the vibrator
++        // (true = enabled, false = disabled).
++        virtual bool setState(bool value) = 0;
++        // Reports whether setRtpInput() is supported.
++        virtual bool hasRtpInput() = 0;
++        // Specifies the playback amplitude of the haptic waveforms in RTP mode.
++        // Negative numbers indicates braking.
++        virtual bool setRtpInput(int8_t value) = 0;
++        // Specifies the mode of operation.
++        //   rtp        - RTP Mode
++        //   waveform   - Waveform Sequencer Mode
++        //   diag       - Diagnostics Routine
++        //   autocal    - Automatic Level Calibration Routine
++        virtual bool setMode(std::string value) = 0;
++        // Specifies a waveform sequence in index-count pairs.
++        //   <index-1> <count-1> [<index-2> <cound-2> ...]
++        virtual bool setSequencer(std::string value) = 0;
++        // Specifies the scaling of effects in Waveform mode.
++        //   0 - 100%
++        //   1 - 75%
++        //   2 - 50%
++        //   3 - 25%
++        virtual bool setScale(uint8_t value) = 0;
++        // Selects either closed loop or open loop mode.
++        // (true = open, false = closed).
++        virtual bool setCtrlLoop(bool value) = 0;
++        // Specifies waveform index to be played in low-power trigger mode.
++        //   0  - Disabled
++        //   1+ - Waveform Index
++        virtual bool setLpTriggerEffect(uint32_t value) = 0;
++        // Specifies scale to be used in low-power trigger mode.
++        // See setScale().
++        virtual bool setLpTriggerScale(uint8_t value) = 0;
++        // Specifies which shape to use for driving the LRA when in open loop
++        // mode.
++        //   0 - Square Wave
++        //   1 - Sine Wave
++        virtual bool setLraWaveShape(uint32_t value) = 0;
++        // Specifies the maximum voltage for automatic overdrive and automatic
++        // braking periods.
++        virtual bool setOdClamp(uint32_t value) = 0;
++        // Emit diagnostic information to the given file.
++        virtual void debug(int fd) = 0;
++    };
++
++    // APIs for obtaining calibration/configuration data from persistent memory.
++    class HwCal {
++      public:
++        virtual ~HwCal() = default;
++        // Obtains the COMP, BEMF, and GAIN calibration values to use.
++        virtual bool getAutocal(std::string *value) = 0;
++        // Obtains the open-loop LRA frequency to be used.
++        virtual bool getLraPeriod(uint32_t *value) = 0;
++        // Obtains threshold in ms, above which close-loop should be used.
++        virtual bool getCloseLoopThreshold(uint32_t *value) = 0;
++        // Obtains dynamic/static configuration choice.
++        virtual bool getDynamicConfig(bool *value) = 0;
++        // Obtains LRA frequency shift for long (steady) vibrations.
++        virtual bool getLongFrequencyShift(uint32_t *value) = 0;
++        // Obtains maximum voltage for short (effect) vibrations
++        virtual bool getShortVoltageMax(uint32_t *value) = 0;
++        // Obtains maximum voltage for long (steady) vibrations
++        virtual bool getLongVoltageMax(uint32_t *value) = 0;
++        // Obtains the duration for the click effect
++        virtual bool getClickDuration(uint32_t *value) = 0;
++        // Obtains the duration for the tick effect
++        virtual bool getTickDuration(uint32_t *value) = 0;
++        // Obtains the duration for the double-click effect
++        virtual bool getDoubleClickDuration(uint32_t *value) = 0;
++        // Obtains the duration for the heavy-click effect
++        virtual bool getHeavyClickDuration(uint32_t *value) = 0;
++        // Emit diagnostic information to the given file.
++        virtual void debug(int fd) = 0;
++    };
++
++  private:
++    enum class LoopControl : bool {
++        CLOSE = false,
++        OPEN = true,
++    };
++
++    enum class WaveShape : uint32_t {
++        SQUARE = 0,
++        SINE = 1,
++    };
++
++    struct VibrationConfig {
++        WaveShape shape;
++        uint32_t odClamp;
++        uint32_t olLraPeriod;
++    };
++
++  public:
++    Vibrator(std::unique_ptr<HwApi> hwapi, std::unique_ptr<HwCal> hwcal);
++
++    ndk::ScopedAStatus getCapabilities(int32_t *_aidl_return) override;
++    ndk::ScopedAStatus off() override;
++    ndk::ScopedAStatus on(int32_t timeoutMs,
++                          const std::shared_ptr<IVibratorCallback> &callback) override;
++    ndk::ScopedAStatus perform(Effect effect, EffectStrength strength,
++                               const std::shared_ptr<IVibratorCallback> &callback,
++                               int32_t *_aidl_return) override;
++    ndk::ScopedAStatus getSupportedEffects(std::vector<Effect> *_aidl_return) override;
++    ndk::ScopedAStatus setAmplitude(float amplitude) override;
++    ndk::ScopedAStatus setExternalControl(bool enabled) override;
++    ndk::ScopedAStatus getCompositionDelayMax(int32_t *maxDelayMs);
++    ndk::ScopedAStatus getCompositionSizeMax(int32_t *maxSize);
++    ndk::ScopedAStatus getSupportedPrimitives(std::vector<CompositePrimitive> *supported) override;
++    ndk::ScopedAStatus getPrimitiveDuration(CompositePrimitive primitive,
++                                            int32_t *durationMs) override;
++    ndk::ScopedAStatus compose(const std::vector<CompositeEffect> &composite,
++                               const std::shared_ptr<IVibratorCallback> &callback) override;
++    ndk::ScopedAStatus getSupportedAlwaysOnEffects(std::vector<Effect> *_aidl_return) override;
++    ndk::ScopedAStatus alwaysOnEnable(int32_t id, Effect effect, EffectStrength strength) override;
++    ndk::ScopedAStatus alwaysOnDisable(int32_t id) override;
++    ndk::ScopedAStatus getResonantFrequency(float *resonantFreqHz) override;
++    ndk::ScopedAStatus getQFactor(float *qFactor) override;
++    ndk::ScopedAStatus getFrequencyResolution(float *freqResolutionHz) override;
++    ndk::ScopedAStatus getFrequencyMinimum(float *freqMinimumHz) override;
++    ndk::ScopedAStatus getBandwidthAmplitudeMap(std::vector<float> *_aidl_return) override;
++    ndk::ScopedAStatus getPwlePrimitiveDurationMax(int32_t *durationMs) override;
++    ndk::ScopedAStatus getPwleCompositionSizeMax(int32_t *maxSize) override;
++    ndk::ScopedAStatus getSupportedBraking(std::vector<Braking> *supported) override;
++    ndk::ScopedAStatus composePwle(const std::vector<PrimitivePwle> &composite,
++                                   const std::shared_ptr<IVibratorCallback> &callback) override;
++
++    binder_status_t dump(int fd, const char **args, uint32_t numArgs) override;
++
++  private:
++    ndk::ScopedAStatus on(uint32_t timeoutMs, const char mode[],
++                          const std::unique_ptr<VibrationConfig> &config);
++    ndk::ScopedAStatus getEffectDetails(Effect effect, uint8_t *outIndex, uint32_t *outTimeMs);
++    ndk::ScopedAStatus performEffect(Effect effect, EffectStrength strength, int32_t *outTimeMs);
++
++    std::unique_ptr<HwApi> mHwApi;
++    std::unique_ptr<HwCal> mHwCal;
++    uint32_t mCloseLoopThreshold;
++    std::unique_ptr<VibrationConfig> mSteadyConfig;
++    std::unique_ptr<VibrationConfig> mEffectConfig;
++    uint32_t mClickDuration;
++    uint32_t mTickDuration;
++    uint32_t mDoubleClickDuration;
++    uint32_t mHeavyClickDuration;
++};
++
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/vibrator/drv2624/android.hardware.vibrator-service.drv2624.rc b/vibrator/drv2624/android.hardware.vibrator-service.drv2624.rc
+new file mode 100644
+index 00000000..d7ced06a
+--- /dev/null
++++ b/vibrator/drv2624/android.hardware.vibrator-service.drv2624.rc
+@@ -0,0 +1,48 @@
++on boot
++    wait /sys/class/leds/vibrator/device
++
++    mkdir /mnt/vendor/persist/haptics 0770 system system
++    chmod 770 /mnt/vendor/persist/haptics
++    chmod 440 /mnt/vendor/persist/haptics/drv2624.cal
++    chown system system /mnt/vendor/persist/haptics
++    chown system system /mnt/vendor/persist/haptics/drv2624.cal
++
++    write /sys/class/leds/vibrator/trigger transient
++    chown system system /sys/class/leds/vibrator/activate
++    chown system system /sys/class/leds/vibrator/brightness
++    chown system system /sys/class/leds/vibrator/duration
++    chown system system /sys/class/leds/vibrator/state
++
++    chown system system /sys/class/leds/vibrator/device/autocal
++    chown system system /sys/class/leds/vibrator/device/autocal_result
++    chown system system /sys/class/leds/vibrator/device/ctrl_loop
++    chown system system /sys/class/leds/vibrator/device/lp_trigger_effect
++    chown system system /sys/class/leds/vibrator/device/lp_trigger_scale
++    chown system system /sys/class/leds/vibrator/device/lra_wave_shape
++    chown system system /sys/class/leds/vibrator/device/mode
++    chown system system /sys/class/leds/vibrator/device/od_clamp
++    chown system system /sys/class/leds/vibrator/device/ol_lra_period
++    chown system system /sys/class/leds/vibrator/device/rtp_input
++    chown system system /sys/class/leds/vibrator/device/scale
++    chown system system /sys/class/leds/vibrator/device/set_sequencer
++
++    enable vendor.vibrator.drv2624
++
++service vendor.vibrator.drv2624 /vendor/bin/hw/android.hardware.vibrator-service.drv2624
++    class hal
++    user system
++    group system
++
++    setenv PROPERTY_PREFIX ro.vendor.vibrator.hal.
++    setenv CALIBRATION_FILEPATH /persist/haptics/drv2624.cal
++
++    setenv HWAPI_PATH_PREFIX /sys/class/leds/vibrator/
++    setenv HWAPI_DEBUG_PATHS "
++        device/autocal
++        device/lp_trigger_effect
++        device/lp_trigger_scale
++        device/ol_lra_period
++        state
++        "
++
++    disabled
+diff --git a/vibrator/drv2624/android.hardware.vibrator-service.drv2624.xml b/vibrator/drv2624/android.hardware.vibrator-service.drv2624.xml
+new file mode 100644
+index 00000000..4db8f8c5
+--- /dev/null
++++ b/vibrator/drv2624/android.hardware.vibrator-service.drv2624.xml
+@@ -0,0 +1,7 @@
++<manifest version="1.0" type="device">
++    <hal format="aidl">
++        <name>android.hardware.vibrator</name>
++        <version>2</version>
++        <fqname>IVibrator/default</fqname>
++    </hal>
++</manifest>
+diff --git a/vibrator/drv2624/apex/Android.bp b/vibrator/drv2624/apex/Android.bp
+new file mode 100644
+index 00000000..cf06eed6
+--- /dev/null
++++ b/vibrator/drv2624/apex/Android.bp
+@@ -0,0 +1,58 @@
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++apex {
++    name: "com.android.vibrator.drv2624",
++    manifest: "apex_manifest.json",
++    key: "com.android.vibrator.drv2624.key",
++    certificate: ":com.android.vibrator.drv2624.certificate",
++    file_contexts: "file_contexts",
++    updatable: false,
++
++    // install the apex in /vendor/apex
++    proprietary: true,
++
++    // BEGIN of apex payloads
++    // /bin
++    binaries: [
++        "android.hardware.vibrator-service.drv2624",
++    ],
++    // /etc
++    prebuilts: [
++        "com.android.vibrator.drv2624.rc",
++    ],
++    // END of apex payloads
++
++    // BEGIN of companion files to be installed if this module is installed
++    // init script, which is installed in /vendor/etc.
++    // Note that init scripts in an apex can contain only "service" sections.
++    // The following init script contains "on" section to enable the service.
++    init_rc: [
++        "com.android.vibrator.drv2624.enable.rc",
++    ],
++
++    // vintf manifest fragments, which is installed in /vendor/etc/vintf.
++    // TODO(b/130058564): should we put vintf framgments within the apex?
++    vintf_fragments: [
++        "com.android.vibrator.drv2624.xml",
++    ],
++    // END of companion filse
++}
++
++apex_key {
++    name: "com.android.vibrator.drv2624.key",
++    public_key: "com.android.vibrator.drv2624.pubkey",
++    private_key: "com.android.vibrator.drv2624.pem",
++}
++
++android_app_certificate {
++    name: "com.android.vibrator.drv2624.certificate",
++    certificate: "com.android.vibrator.drv2624",
++}
++
++prebuilt_etc {
++    name: "com.android.vibrator.drv2624.rc",
++    src: "com.android.vibrator.drv2624.rc",
++    installable: false,
++}
+diff --git a/vibrator/drv2624/apex/apex_manifest.json b/vibrator/drv2624/apex/apex_manifest.json
+new file mode 100644
+index 00000000..ac8af3a4
+--- /dev/null
++++ b/vibrator/drv2624/apex/apex_manifest.json
+@@ -0,0 +1,4 @@
++{
++  "name": "com.android.vibrator.drv2624",
++  "version": 1
++}
+diff --git a/vibrator/drv2624/apex/com.android.vibrator.drv2624.enable.rc b/vibrator/drv2624/apex/com.android.vibrator.drv2624.enable.rc
+new file mode 100644
+index 00000000..d9b79f08
+--- /dev/null
++++ b/vibrator/drv2624/apex/com.android.vibrator.drv2624.enable.rc
+@@ -0,0 +1,29 @@
++on boot
++    wait /sys/class/leds/vibrator/device
++
++    mkdir /mnt/vendor/persist/haptics 0770 system system
++    chmod 770 /mnt/vendor/persist/haptics
++    chmod 440 /mnt/vendor/persist/haptics/drv2624.cal
++    chown system system /mnt/vendor/persist/haptics
++    chown system system /mnt/vendor/persist/haptics/drv2624.cal
++
++    write /sys/class/leds/vibrator/trigger transient
++    chown system system /sys/class/leds/vibrator/activate
++    chown system system /sys/class/leds/vibrator/brightness
++    chown system system /sys/class/leds/vibrator/duration
++    chown system system /sys/class/leds/vibrator/state
++
++    chown system system /sys/class/leds/vibrator/device/autocal
++    chown system system /sys/class/leds/vibrator/device/autocal_result
++    chown system system /sys/class/leds/vibrator/device/ctrl_loop
++    chown system system /sys/class/leds/vibrator/device/lp_trigger_effect
++    chown system system /sys/class/leds/vibrator/device/lp_trigger_scale
++    chown system system /sys/class/leds/vibrator/device/lra_wave_shape
++    chown system system /sys/class/leds/vibrator/device/mode
++    chown system system /sys/class/leds/vibrator/device/od_clamp
++    chown system system /sys/class/leds/vibrator/device/ol_lra_period
++    chown system system /sys/class/leds/vibrator/device/rtp_input
++    chown system system /sys/class/leds/vibrator/device/scale
++    chown system system /sys/class/leds/vibrator/device/set_sequencer
++
++    enable vendor.vibrator.drv2624
+diff --git a/vibrator/drv2624/apex/com.android.vibrator.drv2624.pem b/vibrator/drv2624/apex/com.android.vibrator.drv2624.pem
+new file mode 100644
+index 00000000..012ed8fc
+--- /dev/null
++++ b/vibrator/drv2624/apex/com.android.vibrator.drv2624.pem
+@@ -0,0 +1,51 @@
++-----BEGIN RSA PRIVATE KEY-----
++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
++-----END RSA PRIVATE KEY-----
+diff --git a/vibrator/drv2624/apex/com.android.vibrator.drv2624.pk8 b/vibrator/drv2624/apex/com.android.vibrator.drv2624.pk8
+new file mode 100644
+index 0000000000000000000000000000000000000000..1e9418791f60ec10d8f4da96d52f60b17c7d2bd4
+GIT binary patch
+literal 2374
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/vibrator/drv2624/apex/com.android.vibrator.drv2624.pubkey b/vibrator/drv2624/apex/com.android.vibrator.drv2624.pubkey
+new file mode 100644
+index 0000000000000000000000000000000000000000..479a8686c7ea1b70ae619b45eb86252638ae448e
+GIT binary patch
+literal 1032
+zcmV+j1o!&@01yD7Q#Bc-1X5fUKsmt8Z6+`v;smhcRm9BQ(oht5=>>E9(M9}B7SQs(
+z9c!l+b8#%1Qa^{s&9XE$l}<&)NO(b(>Rv_n=VeVze`)=zcs+GM!tKO`+GzB}cnXm*
+z)$ygOn9jT#EnQP2UWH3c#9xqZk&n3DLaW*LnSwC52<TpV+=kV6)u$+00j4pSx>sW`
+zmokGxwb(C4Sna?ET?{DGx?HFg$+|nqjitUj*}Z9wjK|a{d-Y*81q@f1%C!J7hWqa4
+zxK3+fG0uT93av3}je)!Dr@n-Wm+m5MTCRM8#2W#+Qkir9UQyVphc$PLgL!fhDWTK=
+zqmSdr<0~^Zrx?(Wqi?(9iH_2AL3(7lC6n-IPvCC^_#KU?LvLGa0{*_ZOaSGE;Faht
+z*nAoTeHiBc{_zdT6c|g|4d6r*cPuQl!<LZ#_bKT}OH=fjTKgfG?mA0kbxJ-$z69@P
+z>G<mMsY+}ExSTL0pDZUQXUcT#f)jPlwyDKMMdkSz@tEd#j}I<nCvDpUWu?%ii(cqC
+zi%#aBYc?{k@|&9)o-sFjhibFL<a|}JD*-vMs~h3t8+V13UQaonoxmh86V8={#8qzR
+zzBxO`TDeU`^=s~d$VSxliRAB3F8>#mz^pJYO>`kQoMdH`L)($n2}_ygkVTsUUFc`@
+zh1_lZHmKKZfqRHLlW1T8@&E=t^IPyrsYK;RRJ7kY2mh+1*@Pu-TwJn9b(?UJ+}QhX
+z&mVTfy5C`|r1MN~u#xbT2Pr15g-%5^U@=^huFMOxfKNAyu(0xJ`hv7Bc+gx`uflh)
+zro!MSj)C#TJak0ai_1eZDs3jqvbUL+HjrP{MDN~GPd$9Hka<1&go#M#=%v$jw%rB%
+zmuPPY6Km*no41LyH=;^Vqhw{VtF@p}vi-E=>UxuNv$6&v5`KB-7uPR~9?{@;@Sa8i
+zYWcy>@H4<jL}n!$wbRaW*jKlQ7aWc-^^zYj6%dvR0nqGu7qa19r|F=xMN@#j^C2yc
+zW^H|QVQiCksp#;p2!AiLLRQqBQvfdfu?1}q(7PvvSMt_Z#*WJy=;BkU+`-da)n^MH
+zb=sBLbxzGW3T6Tf^AD9Jpm+H724t>xhAyA^npN~eqa6>YCDZuPZ5(j4C)UWsgt_N&
+zfdAAZx})_79s;MPg9CymMOZooUA3P?U|zS~70YXb@ZK)L=U0{ome@6=UA{+t%UE5q
+zN||f$Ok7pTQjObX+^r&`tT$zr?2Y5^65%b6bv}8o{IRD_172XE@u`cO;cj44x(GVo
+zDF<p5_bD7E5CJ0mLgozT(5Y8oVmJmjWAa+Nhl<HME&aMlwG3;G837luJ%B)ubF>bF
+CuLl?a
+
+literal 0
+HcmV?d00001
+
+diff --git a/vibrator/drv2624/apex/com.android.vibrator.drv2624.rc b/vibrator/drv2624/apex/com.android.vibrator.drv2624.rc
+new file mode 100644
+index 00000000..df4e3e95
+--- /dev/null
++++ b/vibrator/drv2624/apex/com.android.vibrator.drv2624.rc
+@@ -0,0 +1,18 @@
++service vendor.vibrator.drv2624 /apex/com.android.vibrator.drv2624/bin/hw/android.hardware.vibrator-service.drv2624
++    class hal
++    user system
++    group system
++
++    setenv PROPERTY_PREFIX ro.vendor.vibrator.hal.
++    setenv CALIBRATION_FILEPATH /persist/haptics/drv2624.cal
++
++    setenv HWAPI_PATH_PREFIX /sys/class/leds/vibrator/
++    setenv HWAPI_DEBUG_PATHS "
++        device/autocal
++        device/lp_trigger_effect
++        device/lp_trigger_scale
++        device/ol_lra_period
++        state
++        "
++
++    disabled
+diff --git a/vibrator/drv2624/apex/com.android.vibrator.drv2624.x509.pem b/vibrator/drv2624/apex/com.android.vibrator.drv2624.x509.pem
+new file mode 100644
+index 00000000..e1d9cac2
+--- /dev/null
++++ b/vibrator/drv2624/apex/com.android.vibrator.drv2624.x509.pem
+@@ -0,0 +1,34 @@
++-----BEGIN CERTIFICATE-----
++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
++-----END CERTIFICATE-----
+diff --git a/vibrator/drv2624/apex/com.android.vibrator.drv2624.xml b/vibrator/drv2624/apex/com.android.vibrator.drv2624.xml
+new file mode 100644
+index 00000000..4db8f8c5
+--- /dev/null
++++ b/vibrator/drv2624/apex/com.android.vibrator.drv2624.xml
+@@ -0,0 +1,7 @@
++<manifest version="1.0" type="device">
++    <hal format="aidl">
++        <name>android.hardware.vibrator</name>
++        <version>2</version>
++        <fqname>IVibrator/default</fqname>
++    </hal>
++</manifest>
+diff --git a/vibrator/drv2624/apex/file_contexts b/vibrator/drv2624/apex/file_contexts
+new file mode 100644
+index 00000000..5be98ec7
+--- /dev/null
++++ b/vibrator/drv2624/apex/file_contexts
+@@ -0,0 +1,2 @@
++(/.*)? u:object_r:vendor_file:s0
++/bin/hw/android\.hardware\.vibrator-service\.drv2624 u:object_r:hal_vibrator_default_exec:s0
+\ No newline at end of file
+diff --git a/vibrator/drv2624/apex/key.pem b/vibrator/drv2624/apex/key.pem
+new file mode 100644
+index 00000000..b582099c
+--- /dev/null
++++ b/vibrator/drv2624/apex/key.pem
+@@ -0,0 +1,52 @@
++-----BEGIN PRIVATE KEY-----
++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
++zCK8JO9WGOwvH9n0F+pgYXEo4OtjMA==
++-----END PRIVATE KEY-----
+diff --git a/vibrator/drv2624/bench/Android.bp b/vibrator/drv2624/bench/Android.bp
+new file mode 100644
+index 00000000..d7bd3c4c
+--- /dev/null
++++ b/vibrator/drv2624/bench/Android.bp
+@@ -0,0 +1,33 @@
++//
++// Copyright (C) 2019 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++cc_benchmark {
++    name: "VibratorHalDrv2624Benchmark",
++    defaults: ["VibratorHalDrv2624TestDefaults"],
++    srcs: [
++        "benchmark.cpp",
++    ],
++    shared_libs: [
++        "libbase",
++    ],
++    // TODO(b/135767253): Remove when fixed.
++    test_suites: ["device-tests"],
++    // TODO(b/142024316): Remove when fixed.
++    require_root: true,
++}
+diff --git a/vibrator/drv2624/bench/benchmark.cpp b/vibrator/drv2624/bench/benchmark.cpp
+new file mode 100644
+index 00000000..24b67640
+--- /dev/null
++++ b/vibrator/drv2624/bench/benchmark.cpp
+@@ -0,0 +1,189 @@
++/* * Copyright (C) 2019 The Android Open Source Project *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include "benchmark/benchmark.h"
++
++#include <android-base/file.h>
++#include <android-base/properties.h>
++#include <cutils/fs.h>
++
++#include "Hardware.h"
++#include "Vibrator.h"
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++
++using ::android::base::SetProperty;
++
++class VibratorBench : public benchmark::Fixture {
++  private:
++    static constexpr const char *FILE_NAMES[]{
++            "device/autocal",
++            "device/ol_lra_period",
++            "activate",
++            "duration",
++            "state",
++            "device/rtp_input",
++            "device/mode",
++            "device/set_sequencer",
++            "device/scale",
++            "device/ctrl_loop",
++            "device/lp_trigger_effect",
++            "device/lp_trigger_scale",
++            "device/lra_wave_shape",
++            "device/od_clamp",
++    };
++    static constexpr char PROPERTY_PREFIX[] = "test.vibrator.hal.";
++
++  public:
++    void SetUp(::benchmark::State &state) override {
++        auto prefix = std::filesystem::path(mFilesDir.path) / "";
++
++        setenv("HWAPI_PATH_PREFIX", prefix.c_str(), true);
++
++        for (auto n : FILE_NAMES) {
++            const auto name = std::filesystem::path(n);
++            const auto path = std::filesystem::path(mFilesDir.path) / name;
++
++            fs_mkdirs(path.c_str(), S_IRWXU);
++            symlink("/dev/null", path.c_str());
++        }
++
++        setenv("PROPERTY_PREFIX", PROPERTY_PREFIX, true);
++
++        SetProperty(std::string() + PROPERTY_PREFIX + "config.dynamic", getDynamicConfig(state));
++
++        mVibrator = ndk::SharedRefBase::make<Vibrator>(HwApi::Create(), std::make_unique<HwCal>());
++    }
++
++    static void DefaultConfig(benchmark::internal::Benchmark *b) {
++        b->Unit(benchmark::kMicrosecond);
++    }
++
++    static void DefaultArgs(benchmark::internal::Benchmark *b) {
++        b->ArgNames({"DynamicConfig"});
++        b->Args({false});
++        b->Args({true});
++    }
++
++  protected:
++    std::string getDynamicConfig(const ::benchmark::State &state) const {
++        return std::to_string(state.range(0));
++    }
++
++    auto getOtherArg(const ::benchmark::State &state, std::size_t index) const {
++        return state.range(index + 1);
++    }
++
++  protected:
++    TemporaryDir mFilesDir;
++    std::shared_ptr<IVibrator> mVibrator;
++};
++
++#define BENCHMARK_WRAPPER(fixt, test, code)                           \
++    BENCHMARK_DEFINE_F(fixt, test)                                    \
++    /* NOLINTNEXTLINE */                                              \
++    (benchmark::State & state){code} BENCHMARK_REGISTER_F(fixt, test) \
++            ->Apply(fixt::DefaultConfig)                              \
++            ->Apply(fixt::DefaultArgs)
++
++BENCHMARK_WRAPPER(VibratorBench, on, {
++    uint32_t duration = std::rand() ?: 1;
++
++    for (auto _ : state) {
++        mVibrator->on(duration, nullptr);
++    }
++});
++
++BENCHMARK_WRAPPER(VibratorBench, off, {
++    for (auto _ : state) {
++        mVibrator->off();
++    }
++});
++
++BENCHMARK_WRAPPER(VibratorBench, setAmplitude, {
++    uint8_t amplitude = std::rand() ?: 1;
++
++    for (auto _ : state) {
++        mVibrator->setAmplitude(amplitude);
++    }
++});
++
++BENCHMARK_WRAPPER(VibratorBench, setExternalControl_enable, {
++    for (auto _ : state) {
++        mVibrator->setExternalControl(true);
++    }
++});
++
++BENCHMARK_WRAPPER(VibratorBench, setExternalControl_disable, {
++    for (auto _ : state) {
++        mVibrator->setExternalControl(false);
++    }
++});
++
++BENCHMARK_WRAPPER(VibratorBench, getCapabilities, {
++    int32_t capabilities;
++
++    for (auto _ : state) {
++        mVibrator->getCapabilities(&capabilities);
++    }
++});
++
++class VibratorEffectsBench : public VibratorBench {
++  public:
++    static void DefaultArgs(benchmark::internal::Benchmark *b) {
++        b->ArgNames({"DynamicConfig", "Effect", "Strength"});
++        for (const auto &dynamic : {false, true}) {
++            for (const auto &effect : ndk::enum_range<Effect>()) {
++                for (const auto &strength : ndk::enum_range<EffectStrength>()) {
++                    b->Args({dynamic, static_cast<long>(effect), static_cast<long>(strength)});
++                }
++            }
++        }
++    }
++
++  protected:
++    auto getEffect(const ::benchmark::State &state) const {
++        return static_cast<Effect>(getOtherArg(state, 0));
++    }
++
++    auto getStrength(const ::benchmark::State &state) const {
++        return static_cast<EffectStrength>(getOtherArg(state, 1));
++    }
++};
++
++BENCHMARK_WRAPPER(VibratorEffectsBench, perform, {
++    Effect effect = getEffect(state);
++    EffectStrength strength = getStrength(state);
++    int32_t lengthMs;
++
++    ndk::ScopedAStatus status = mVibrator->perform(effect, strength, nullptr, &lengthMs);
++
++    if (status.getExceptionCode() == EX_UNSUPPORTED_OPERATION) {
++        return;
++    }
++
++    for (auto _ : state) {
++        mVibrator->perform(effect, strength, nullptr, &lengthMs);
++    }
++});
++
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
++
++BENCHMARK_MAIN();
+diff --git a/vibrator/drv2624/device.mk b/vibrator/drv2624/device.mk
+new file mode 100644
+index 00000000..c2719b5b
+--- /dev/null
++++ b/vibrator/drv2624/device.mk
+@@ -0,0 +1,6 @@
++PRODUCT_PACKAGES += \
++    com.android.vibrator.drv2624 \
++
++BOARD_SEPOLICY_DIRS += \
++    hardware/google/pixel-sepolicy/vibrator/common \
++    hardware/google/pixel-sepolicy/vibrator/drv2624 \
+diff --git a/vibrator/drv2624/fuzzer/Android.bp b/vibrator/drv2624/fuzzer/Android.bp
+new file mode 100644
+index 00000000..ae8df095
+--- /dev/null
++++ b/vibrator/drv2624/fuzzer/Android.bp
+@@ -0,0 +1,38 @@
++//
++// Copyright (C) 2024 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package {
++    default_team: "trendy_team_pixel_system_sw_touch_haptic",
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++cc_fuzz {
++    name: "VibratorHalDrv2624Fuzzer",
++    relative_install_path: "",
++    defaults: [
++        "VibratorHalDrv2624BinaryDefaults",
++        "service_fuzzer_defaults",
++    ],
++    srcs: [
++        "fuzzer-vibrator.cpp",
++    ],
++    shared_libs: [
++        "android.hardware.vibrator-impl.drv2624",
++    ],
++    fuzz_config: {
++        triage_assignee: "pixel-haptics-triage@google.com",
++        componentid: 716924,
++    },
++}
+diff --git a/vibrator/drv2624/fuzzer/fuzzer-vibrator.cpp b/vibrator/drv2624/fuzzer/fuzzer-vibrator.cpp
+new file mode 100644
+index 00000000..d1b400ac
+--- /dev/null
++++ b/vibrator/drv2624/fuzzer/fuzzer-vibrator.cpp
+@@ -0,0 +1,36 @@
++/*
++ * Copyright (C) 2024 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <fuzzbinder/libbinder_ndk_driver.h>
++#include <fuzzer/FuzzedDataProvider.h>
++
++#include "Hardware.h"
++#include "Vibrator.h"
++
++using ::aidl::android::hardware::vibrator::HwApi;
++using ::aidl::android::hardware::vibrator::HwCal;
++using ::aidl::android::hardware::vibrator::Vibrator;
++using android::fuzzService;
++using ndk::SharedRefBase;
++
++extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
++    std::shared_ptr<Vibrator> vibService =
++            ndk::SharedRefBase::make<Vibrator>(HwApi::Create(), std::make_unique<HwCal>());
++
++    fuzzService(vibService->asBinder().get(), FuzzedDataProvider(data, size));
++
++    return 0;
++}
+diff --git a/vibrator/drv2624/service.cpp b/vibrator/drv2624/service.cpp
+new file mode 100644
+index 00000000..d4287a06
+--- /dev/null
++++ b/vibrator/drv2624/service.cpp
+@@ -0,0 +1,44 @@
++/*
++ * Copyright (C) 2017 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#include "Hardware.h"
++#include "Vibrator.h"
++
++#include <android/binder_manager.h>
++#include <android/binder_process.h>
++#include <log/log.h>
++
++using aidl::android::hardware::vibrator::HwApi;
++using aidl::android::hardware::vibrator::HwCal;
++using aidl::android::hardware::vibrator::Vibrator;
++
++int main() {
++    auto hwapi = HwApi::Create();
++
++    if (!hwapi) {
++        return EXIT_FAILURE;
++    }
++
++    ABinderProcess_setThreadPoolMaxThreadCount(0);
++    std::shared_ptr<Vibrator> vib =
++            ndk::SharedRefBase::make<Vibrator>(std::move(hwapi), std::make_unique<HwCal>());
++
++    const std::string instance = std::string() + Vibrator::descriptor + "/default";
++    binder_status_t status = AServiceManager_addService(vib->asBinder().get(), instance.c_str());
++    LOG_ALWAYS_FATAL_IF(status != STATUS_OK);
++
++    ABinderProcess_joinThreadPool();
++    return EXIT_FAILURE;  // should not reach
++}
+diff --git a/vibrator/drv2624/tests/Android.bp b/vibrator/drv2624/tests/Android.bp
+new file mode 100644
+index 00000000..23c868c7
+--- /dev/null
++++ b/vibrator/drv2624/tests/Android.bp
+@@ -0,0 +1,34 @@
++//
++// Copyright (C) 2019 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++cc_test {
++    name: "VibratorHalDrv2624TestSuite",
++    defaults: ["VibratorHalDrv2624TestDefaults"],
++    srcs: [
++        "test-hwapi.cpp",
++        "test-hwcal.cpp",
++        "test-vibrator.cpp",
++    ],
++    static_libs: [
++        "libgmock",
++    ],
++    shared_libs: [
++        "libbase",
++    ],
++}
+diff --git a/vibrator/drv2624/tests/mocks.h b/vibrator/drv2624/tests/mocks.h
+new file mode 100644
+index 00000000..b4d06d15
+--- /dev/null
++++ b/vibrator/drv2624/tests/mocks.h
+@@ -0,0 +1,65 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#ifndef ANDROID_HARDWARE_VIBRATOR_TEST_MOCKS_H
++#define ANDROID_HARDWARE_VIBRATOR_TEST_MOCKS_H
++
++#include "Vibrator.h"
++
++class MockApi : public ::aidl::android::hardware::vibrator::Vibrator::HwApi {
++  public:
++    MOCK_METHOD0(destructor, void());
++    MOCK_METHOD1(setAutocal, bool(std::string value));
++    MOCK_METHOD1(setOlLraPeriod, bool(uint32_t value));
++    MOCK_METHOD1(setActivate, bool(bool value));
++    MOCK_METHOD1(setDuration, bool(uint32_t value));
++    MOCK_METHOD1(setState, bool(bool value));
++    MOCK_METHOD0(hasRtpInput, bool());
++    MOCK_METHOD1(setRtpInput, bool(int8_t value));
++    MOCK_METHOD1(setMode, bool(std::string value));
++    MOCK_METHOD1(setSequencer, bool(std::string value));
++    MOCK_METHOD1(setScale, bool(uint8_t value));
++    MOCK_METHOD1(setCtrlLoop, bool(bool value));
++    MOCK_METHOD1(setLpTriggerEffect, bool(uint32_t value));
++    MOCK_METHOD1(setLpTriggerScale, bool(uint8_t value));
++    MOCK_METHOD1(setLraWaveShape, bool(uint32_t value));
++    MOCK_METHOD1(setOdClamp, bool(uint32_t value));
++    MOCK_METHOD1(debug, void(int fd));
++
++    ~MockApi() override { destructor(); };
++};
++
++class MockCal : public ::aidl::android::hardware::vibrator::Vibrator::HwCal {
++  public:
++    MOCK_METHOD0(destructor, void());
++    MOCK_METHOD1(getAutocal, bool(std::string &value));  // NOLINT
++    MOCK_METHOD1(getLraPeriod, bool(uint32_t *value));
++    MOCK_METHOD1(getCloseLoopThreshold, bool(uint32_t *value));
++    MOCK_METHOD1(getDynamicConfig, bool(bool *value));
++    MOCK_METHOD1(getLongFrequencyShift, bool(uint32_t *value));
++    MOCK_METHOD1(getShortVoltageMax, bool(uint32_t *value));
++    MOCK_METHOD1(getLongVoltageMax, bool(uint32_t *value));
++    MOCK_METHOD1(getClickDuration, bool(uint32_t *value));
++    MOCK_METHOD1(getTickDuration, bool(uint32_t *value));
++    MOCK_METHOD1(getDoubleClickDuration, bool(uint32_t *value));
++    MOCK_METHOD1(getHeavyClickDuration, bool(uint32_t *value));
++    MOCK_METHOD1(debug, void(int fd));
++
++    ~MockCal() override { destructor(); };
++    // b/132668253: Workaround gMock Compilation Issue
++    bool getAutocal(std::string *value) { return getAutocal(*value); }
++};
++
++#endif  // ANDROID_HARDWARE_VIBRATOR_TEST_MOCKS_H
+diff --git a/vibrator/drv2624/tests/test-hwapi.cpp b/vibrator/drv2624/tests/test-hwapi.cpp
+new file mode 100644
+index 00000000..af2b2f70
+--- /dev/null
++++ b/vibrator/drv2624/tests/test-hwapi.cpp
+@@ -0,0 +1,405 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <android-base/file.h>
++#include <cutils/fs.h>
++#include <gtest/gtest.h>
++
++#include <cstdlib>
++#include <fstream>
++
++#include "Hardware.h"
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++
++using ::testing::Test;
++using ::testing::TestParamInfo;
++using ::testing::ValuesIn;
++using ::testing::WithParamInterface;
++
++class HwApiTest : public Test {
++  protected:
++    static constexpr const char *FILE_NAMES[]{
++            "device/autocal",
++            "device/ol_lra_period",
++            "activate",
++            "duration",
++            "state",
++            "device/rtp_input",
++            "device/mode",
++            "device/set_sequencer",
++            "device/scale",
++            "device/ctrl_loop",
++            "device/lp_trigger_effect",
++            "device/lp_trigger_scale",
++            "device/lra_wave_shape",
++            "device/od_clamp",
++    };
++
++    static constexpr const char *REQUIRED[]{
++            "activate",
++            "duration",
++            "state",
++    };
++
++  public:
++    void SetUp() override {
++        std::string prefix;
++        for (auto n : FILE_NAMES) {
++            auto name = std::filesystem::path(n);
++            auto path = std::filesystem::path(mFilesDir.path) / name;
++            fs_mkdirs(path.c_str(), S_IRWXU);
++            std::ofstream touch{path};
++            mFileMap[name] = path;
++        }
++        prefix = std::filesystem::path(mFilesDir.path) / "";
++        setenv("HWAPI_PATH_PREFIX", prefix.c_str(), true);
++        mHwApi = HwApi::Create();
++
++        for (auto n : REQUIRED) {
++            auto name = std::filesystem::path(n);
++            auto path = std::filesystem::path(mEmptyDir.path) / name;
++            fs_mkdirs(path.c_str(), S_IRWXU);
++            std::ofstream touch{path};
++        }
++        prefix = std::filesystem::path(mEmptyDir.path) / "";
++        setenv("HWAPI_PATH_PREFIX", prefix.c_str(), true);
++        mNoApi = HwApi::Create();
++    }
++
++    void TearDown() override { verifyContents(); }
++
++  protected:
++    // Set expected file content for a test.
++    template <typename T>
++    void expectContent(const std::string &name, const T &value) {
++        mExpectedContent[name] << value << std::endl;
++    }
++
++    // Set actual file content for an input test.
++    template <typename T>
++    void updateContent(const std::string &name, const T &value) {
++        std::ofstream(mFileMap[name]) << value << std::endl;
++    }
++
++    template <typename T>
++    void expectAndUpdateContent(const std::string &name, const T &value) {
++        expectContent(name, value);
++        updateContent(name, value);
++    }
++
++    // Compare all file contents against expected contents.
++    void verifyContents() {
++        for (auto &a : mFileMap) {
++            std::ifstream file{a.second};
++            std::string expect = mExpectedContent[a.first].str();
++            std::string actual = std::string(std::istreambuf_iterator<char>(file),
++                                             std::istreambuf_iterator<char>());
++            EXPECT_EQ(expect, actual) << a.first;
++        }
++    }
++
++    // TODO(eliptus): Determine how to induce errors in required files
++    static bool isRequired(const std::string &name) {
++        for (auto n : REQUIRED) {
++            if (std::string(n) == name) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++    static auto ParamNameFixup(std::string str) {
++        std::replace(str.begin(), str.end(), '/', '_');
++        return str;
++    }
++
++  protected:
++    std::unique_ptr<Vibrator::HwApi> mHwApi;
++    std::unique_ptr<Vibrator::HwApi> mNoApi;
++    std::map<std::string, std::string> mFileMap;
++    TemporaryDir mFilesDir;
++    TemporaryDir mEmptyDir;
++    std::map<std::string, std::stringstream> mExpectedContent;
++};
++
++class CreateTest : public HwApiTest, public WithParamInterface<const char *> {
++  public:
++    void SetUp() override{};
++    void TearDown() override{};
++
++    static auto PrintParam(const TestParamInfo<CreateTest::ParamType> &info) {
++        return ParamNameFixup(info.param);
++    }
++    static auto &AllParams() { return FILE_NAMES; }
++};
++
++TEST_P(CreateTest, file_missing) {
++    auto skip = std::string(GetParam());
++    TemporaryDir dir;
++    std::unique_ptr<HwApi> hwapi;
++    std::string prefix;
++
++    for (auto n : FILE_NAMES) {
++        auto name = std::string(n);
++        auto path = std::string(dir.path) + "/" + name;
++        if (name == skip) {
++            continue;
++        }
++        fs_mkdirs(path.c_str(), S_IRWXU);
++        std::ofstream touch{path};
++    }
++
++    prefix = std::filesystem::path(dir.path) / "";
++    setenv("HWAPI_PATH_PREFIX", prefix.c_str(), true);
++    hwapi = HwApi::Create();
++    if (isRequired(skip)) {
++        EXPECT_EQ(nullptr, hwapi);
++    } else {
++        EXPECT_NE(nullptr, hwapi);
++    }
++}
++
++INSTANTIATE_TEST_CASE_P(HwApiTests, CreateTest, ValuesIn(CreateTest::AllParams()),
++                        CreateTest::PrintParam);
++
++template <typename T>
++class HwApiTypedTest : public HwApiTest,
++                       public WithParamInterface<std::tuple<std::string, std::function<T>>> {
++  public:
++    static auto PrintParam(const TestParamInfo<typename HwApiTypedTest::ParamType> &info) {
++        return ParamNameFixup(std::get<0>(info.param));
++    }
++    static auto MakeParam(std::string name, std::function<T> func) {
++        return std::make_tuple(name, func);
++    }
++};
++
++using HasTest = HwApiTypedTest<bool(Vibrator::HwApi &)>;
++
++TEST_P(HasTest, success_returnsTrue) {
++    auto param = GetParam();
++    auto func = std::get<1>(param);
++
++    EXPECT_TRUE(func(*mHwApi));
++}
++
++TEST_P(HasTest, success_returnsFalse) {
++    auto param = GetParam();
++    auto func = std::get<1>(param);
++
++    EXPECT_FALSE(func(*mNoApi));
++}
++
++INSTANTIATE_TEST_CASE_P(HwApiTests, HasTest,
++                        ValuesIn({
++                                HasTest::MakeParam("device/rtp_input",
++                                                   &Vibrator::HwApi::hasRtpInput),
++                        }),
++                        HasTest::PrintParam);
++
++using SetBoolTest = HwApiTypedTest<bool(Vibrator::HwApi &, bool)>;
++
++TEST_P(SetBoolTest, success_returnsTrue) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++
++    expectContent(name, "1");
++
++    EXPECT_TRUE(func(*mHwApi, true));
++}
++
++TEST_P(SetBoolTest, success_returnsFalse) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++
++    expectContent(name, "0");
++
++    EXPECT_TRUE(func(*mHwApi, false));
++}
++
++TEST_P(SetBoolTest, failure) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++
++    if (isRequired(name)) {
++        GTEST_SKIP();
++    }
++
++    EXPECT_FALSE(func(*mNoApi, true));
++    EXPECT_FALSE(func(*mNoApi, false));
++}
++
++INSTANTIATE_TEST_CASE_P(HwApiTests, SetBoolTest,
++                        ValuesIn({
++                                SetBoolTest::MakeParam("activate", &Vibrator::HwApi::setActivate),
++                                SetBoolTest::MakeParam("state", &Vibrator::HwApi::setState),
++                                SetBoolTest::MakeParam("device/ctrl_loop",
++                                                       &Vibrator::HwApi::setCtrlLoop),
++                        }),
++                        SetBoolTest::PrintParam);
++
++using SetInt8Test = HwApiTypedTest<bool(Vibrator::HwApi &, int8_t)>;
++
++TEST_P(SetInt8Test, success) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++    int8_t value = std::rand();
++
++    expectContent(name, +value);
++
++    EXPECT_TRUE(func(*mHwApi, value));
++}
++
++TEST_P(SetInt8Test, failure) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++    int8_t value = std::rand();
++
++    if (isRequired(name)) {
++        GTEST_SKIP();
++    }
++
++    EXPECT_FALSE(func(*mNoApi, value));
++}
++
++INSTANTIATE_TEST_CASE_P(HwApiTests, SetInt8Test,
++                        ValuesIn({
++                                SetInt8Test::MakeParam("device/rtp_input",
++                                                       &Vibrator::HwApi::setRtpInput),
++                        }),
++                        SetInt8Test::PrintParam);
++
++using SetUint8Test = HwApiTypedTest<bool(Vibrator::HwApi &, uint8_t)>;
++
++TEST_P(SetUint8Test, success) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++    uint8_t value = std::rand();
++
++    expectContent(name, +value);
++
++    EXPECT_TRUE(func(*mHwApi, value));
++}
++
++TEST_P(SetUint8Test, failure) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++    uint8_t value = std::rand();
++
++    if (isRequired(name)) {
++        GTEST_SKIP();
++    }
++
++    EXPECT_FALSE(func(*mNoApi, value));
++}
++
++INSTANTIATE_TEST_CASE_P(HwApiTests, SetUint8Test,
++                        ValuesIn({
++                                SetUint8Test::MakeParam("device/scale", &Vibrator::HwApi::setScale),
++                                SetUint8Test::MakeParam("device/lp_trigger_scale",
++                                                        &Vibrator::HwApi::setLpTriggerScale),
++                        }),
++                        SetUint8Test::PrintParam);
++
++using SetUint32Test = HwApiTypedTest<bool(Vibrator::HwApi &, uint32_t)>;
++
++TEST_P(SetUint32Test, success) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++    uint32_t value = std::rand();
++
++    expectContent(name, value);
++
++    EXPECT_TRUE(func(*mHwApi, value));
++}
++
++TEST_P(SetUint32Test, failure) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++    uint32_t value = std::rand();
++
++    if (isRequired(name)) {
++        GTEST_SKIP();
++    }
++
++    EXPECT_FALSE(func(*mNoApi, value));
++}
++
++INSTANTIATE_TEST_CASE_P(
++        HwApiTests, SetUint32Test,
++        ValuesIn({
++                SetUint32Test::MakeParam("device/ol_lra_period", &Vibrator::HwApi::setOlLraPeriod),
++                SetUint32Test::MakeParam("duration", &Vibrator::HwApi::setDuration),
++                SetUint32Test::MakeParam("device/lp_trigger_effect",
++                                         &Vibrator::HwApi::setLpTriggerEffect),
++                SetUint32Test::MakeParam("device/lra_wave_shape",
++                                         &Vibrator::HwApi::setLraWaveShape),
++                SetUint32Test::MakeParam("device/od_clamp", &Vibrator::HwApi::setOdClamp),
++        }),
++        SetUint32Test::PrintParam);
++
++using SetStringTest = HwApiTypedTest<bool(Vibrator::HwApi &, std::string)>;
++
++TEST_P(SetStringTest, success) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++    std::string value = TemporaryFile().path;
++
++    expectContent(name, value);
++
++    EXPECT_TRUE(func(*mHwApi, value));
++}
++
++TEST_P(SetStringTest, failure) {
++    auto param = GetParam();
++    auto name = std::get<0>(param);
++    auto func = std::get<1>(param);
++    std::string value = TemporaryFile().path;
++
++    if (isRequired(name)) {
++        GTEST_SKIP();
++    }
++
++    EXPECT_FALSE(func(*mNoApi, value));
++}
++
++INSTANTIATE_TEST_CASE_P(
++        HwApiTests, SetStringTest,
++        ValuesIn({
++                SetStringTest::MakeParam("device/autocal", &Vibrator::HwApi::setAutocal),
++                SetStringTest::MakeParam("device/mode", &Vibrator::HwApi::setMode),
++                SetStringTest::MakeParam("device/set_sequencer", &Vibrator::HwApi::setSequencer),
++        }),
++        SetStringTest::PrintParam);
++
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/vibrator/drv2624/tests/test-hwcal.cpp b/vibrator/drv2624/tests/test-hwcal.cpp
+new file mode 100644
+index 00000000..50fe373e
+--- /dev/null
++++ b/vibrator/drv2624/tests/test-hwcal.cpp
+@@ -0,0 +1,394 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <android-base/file.h>
++#include <android-base/properties.h>
++#include <gtest/gtest.h>
++
++#include <fstream>
++
++#include "Hardware.h"
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++
++using ::android::base::SetProperty;
++using ::android::base::WaitForProperty;
++
++using ::testing::Test;
++
++class HwCalTest : public Test {
++  protected:
++    static constexpr char PROPERTY_PREFIX[] = "test.vibrator.hal.";
++
++    static constexpr uint32_t DEFAULT_LRA_PERIOD = 262;
++
++    static constexpr uint32_t DEFAULT_FREQUENCY_SHIFT = 10;
++    static constexpr uint32_t DEFAULT_VOLTAGE_MAX = 107;
++
++    static constexpr uint32_t DEFAULT_CLICK_DURATION_MS = 6;
++    static constexpr uint32_t DEFAULT_TICK_DURATION_MS = 2;
++    static constexpr uint32_t DEFAULT_DOUBLE_CLICK_DURATION_MS = 135;
++    static constexpr uint32_t DEFAULT_HEAVY_CLICK_DURATION_MS = 8;
++
++  public:
++    void SetUp() override {
++        setenv("PROPERTY_PREFIX", PROPERTY_PREFIX, true);
++        setenv("CALIBRATION_FILEPATH", mCalFile.path, true);
++    }
++
++  private:
++    template <typename T>
++    static void pack(std::ostream &stream, const T &value, std::string lpad, std::string rpad) {
++        stream << lpad << value << rpad;
++    }
++
++  protected:
++    void createHwCal() { mHwCal = std::make_unique<HwCal>(); }
++
++    template <typename T>
++    void write(const std::string key, const T &value, std::string lpad = " ",
++               std::string rpad = "") {
++        std::ofstream calfile{mCalFile.path, std::ios_base::app};
++        calfile << key << ":";
++        pack(calfile, value, lpad, rpad);
++        calfile << std::endl;
++    }
++
++    void unlink() { ::unlink(mCalFile.path); }
++
++  protected:
++    std::unique_ptr<Vibrator::HwCal> mHwCal;
++    TemporaryFile mCalFile;
++};
++
++TEST_F(HwCalTest, closeloop_present) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = std::rand();
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "closeloop.threshold", std::to_string(expect)));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getCloseLoopThreshold(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, closeloop_missing) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = UINT32_MAX;
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "closeloop.threshold", std::string()));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getCloseLoopThreshold(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, dynamicconfig_presentFalse) {
++    std::string prefix{PROPERTY_PREFIX};
++    bool expect = false;
++    bool actual = !expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "config.dynamic", "0"));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getDynamicConfig(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, dynamicconfig_presentTrue) {
++    std::string prefix{PROPERTY_PREFIX};
++    bool expect = true;
++    bool actual = !expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "config.dynamic", "1"));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getDynamicConfig(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, dynamicconfig_missing) {
++    std::string prefix{PROPERTY_PREFIX};
++    bool expect = false;
++    bool actual = !expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "config.dynamic", std::string()));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getDynamicConfig(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, freqshift_present) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = std::rand();
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "long.frequency.shift", std::to_string(expect)));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getLongFrequencyShift(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, freqshift_missing) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = DEFAULT_FREQUENCY_SHIFT;
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "long.frequency.shift", std::string()));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getLongFrequencyShift(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, shortvolt_present) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = std::rand();
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "short.voltage", std::to_string(expect)));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getShortVoltageMax(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, shortvolt_missing) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = DEFAULT_VOLTAGE_MAX;
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "short.voltage", std::string()));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getShortVoltageMax(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, longvolt_present) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = std::rand();
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "long.voltage", std::to_string(expect)));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getLongVoltageMax(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, longvolt_missing) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = DEFAULT_VOLTAGE_MAX;
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "long.voltage", std::string()));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getLongVoltageMax(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, click_present) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = std::rand();
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "click.duration", std::to_string(expect)));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getClickDuration(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, click_missing) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = DEFAULT_CLICK_DURATION_MS;
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "click.duration", std::string()));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getClickDuration(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, tick_present) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = std::rand();
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "tick.duration", std::to_string(expect)));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getTickDuration(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, tick_missing) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = DEFAULT_TICK_DURATION_MS;
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "tick.duration", std::string()));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getTickDuration(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, doubleclick) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = DEFAULT_DOUBLE_CLICK_DURATION_MS;
++    uint32_t actual = ~expect;
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getDoubleClickDuration(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, heavyclick_present) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = std::rand();
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "heavyclick.duration", std::to_string(expect)));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getHeavyClickDuration(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, heavyclick_missing) {
++    std::string prefix{PROPERTY_PREFIX};
++    uint32_t expect = DEFAULT_HEAVY_CLICK_DURATION_MS;
++    uint32_t actual = ~expect;
++
++    EXPECT_TRUE(SetProperty(prefix + "heavyclick.duration", std::string()));
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getHeavyClickDuration(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, autocal_present) {
++    std::string expect = std::to_string(std::rand()) + " " + std::to_string(std::rand()) + " " +
++                         std::to_string(std::rand());
++    std::string actual = "";
++
++    write("autocal", expect);
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getAutocal(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, autocal_missing) {
++    std::string actual;
++
++    createHwCal();
++
++    EXPECT_FALSE(mHwCal->getAutocal(&actual));
++}
++
++TEST_F(HwCalTest, lra_period_present) {
++    uint32_t expect = std::rand();
++    uint32_t actual = ~expect;
++
++    write("lra_period", expect);
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getLraPeriod(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, lra_period_missing) {
++    uint32_t expect = DEFAULT_LRA_PERIOD;
++    uint32_t actual = ~expect;
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getLraPeriod(&actual));
++    EXPECT_EQ(expect, actual);
++}
++
++TEST_F(HwCalTest, multiple) {
++    std::string autocalExpect = std::to_string(std::rand()) + " " + std::to_string(std::rand()) +
++                                " " + std::to_string(std::rand());
++    std::string autocalActual = "";
++    uint32_t lraPeriodExpect = std::rand();
++    uint32_t lraPeriodActual = ~lraPeriodExpect;
++
++    write("autocal", autocalExpect);
++    write("lra_period", lraPeriodExpect);
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getAutocal(&autocalActual));
++    EXPECT_EQ(autocalExpect, autocalActual);
++    EXPECT_TRUE(mHwCal->getLraPeriod(&lraPeriodActual));
++    EXPECT_EQ(lraPeriodExpect, lraPeriodActual);
++}
++
++TEST_F(HwCalTest, trimming) {
++    std::string autocalExpect = std::to_string(std::rand()) + " " + std::to_string(std::rand()) +
++                                " " + std::to_string(std::rand());
++    std::string autocalActual = "";
++    uint32_t lraPeriodExpect = std::rand();
++    uint32_t lraPeriodActual = ~lraPeriodExpect;
++
++    write("autocal", autocalExpect, " \t", "\t ");
++    write("lra_period", lraPeriodExpect, " \t", "\t ");
++
++    createHwCal();
++
++    EXPECT_TRUE(mHwCal->getAutocal(&autocalActual));
++    EXPECT_EQ(autocalExpect, autocalActual);
++    EXPECT_TRUE(mHwCal->getLraPeriod(&lraPeriodActual));
++    EXPECT_EQ(lraPeriodExpect, lraPeriodActual);
++}
++
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/vibrator/drv2624/tests/test-vibrator.cpp b/vibrator/drv2624/tests/test-vibrator.cpp
+new file mode 100644
+index 00000000..b64e493d
+--- /dev/null
++++ b/vibrator/drv2624/tests/test-vibrator.cpp
+@@ -0,0 +1,515 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include <android-base/logging.h>
++#include <gmock/gmock.h>
++#include <gtest/gtest.h>
++
++#include "Vibrator.h"
++#include "mocks.h"
++#include "types.h"
++#include "utils.h"
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace vibrator {
++
++using ::testing::_;
++using ::testing::AnyNumber;
++using ::testing::AnyOf;
++using ::testing::Assign;
++using ::testing::Combine;
++using ::testing::DoAll;
++using ::testing::DoDefault;
++using ::testing::Exactly;
++using ::testing::ExpectationSet;
++using ::testing::Mock;
++using ::testing::Range;
++using ::testing::Return;
++using ::testing::Sequence;
++using ::testing::SetArgPointee;
++using ::testing::SetArgReferee;
++using ::testing::Test;
++using ::testing::TestParamInfo;
++using ::testing::ValuesIn;
++using ::testing::WithParamInterface;
++
++// Constants With Prescribed Values
++
++static const std::map<EffectTuple, EffectSequence> EFFECT_SEQUENCES{
++        {{Effect::CLICK, EffectStrength::LIGHT}, {1, 2}},
++        {{Effect::CLICK, EffectStrength::MEDIUM}, {1, 0}},
++        {{Effect::CLICK, EffectStrength::STRONG}, {1, 0}},
++        {{Effect::TICK, EffectStrength::LIGHT}, {2, 2}},
++        {{Effect::TICK, EffectStrength::MEDIUM}, {2, 0}},
++        {{Effect::TICK, EffectStrength::STRONG}, {2, 0}},
++        {{Effect::DOUBLE_CLICK, EffectStrength::LIGHT}, {3, 2}},
++        {{Effect::DOUBLE_CLICK, EffectStrength::MEDIUM}, {3, 0}},
++        {{Effect::DOUBLE_CLICK, EffectStrength::STRONG}, {3, 0}},
++        {{Effect::HEAVY_CLICK, EffectStrength::LIGHT}, {4, 2}},
++        {{Effect::HEAVY_CLICK, EffectStrength::MEDIUM}, {4, 0}},
++        {{Effect::HEAVY_CLICK, EffectStrength::STRONG}, {4, 0}},
++        {{Effect::TEXTURE_TICK, EffectStrength::LIGHT}, {2, 2}},
++        {{Effect::TEXTURE_TICK, EffectStrength::MEDIUM}, {2, 0}},
++        {{Effect::TEXTURE_TICK, EffectStrength::STRONG}, {2, 0}},
++};
++
++static uint32_t freqPeriodFormula(uint32_t in) {
++    return 1000000000 / (24615 * in);
++}
++
++template <typename... T>
++class VibratorTestTemplate : public Test, public WithParamInterface<std::tuple<bool, T...>> {
++  public:
++    static auto GetDynamicConfig(typename VibratorTestTemplate::ParamType param) {
++        return std::get<0>(param);
++    }
++    template <std::size_t I>
++    static auto GetOtherParam(typename VibratorTestTemplate::ParamType param) {
++        return std::get<I + 1>(param);
++    }
++
++    static auto PrintParam(const TestParamInfo<typename VibratorTestTemplate::ParamType> &info) {
++        auto dynamic = GetDynamicConfig(info.param);
++        return std::string() + (dynamic ? "Dynamic" : "Static") + "Config";
++    }
++
++    static auto MakeParam(bool dynamicConfig, T... others) {
++        return std::make_tuple(dynamicConfig, others...);
++    }
++
++    void SetUp() override {
++        std::unique_ptr<MockApi> mockapi;
++        std::unique_ptr<MockCal> mockcal;
++
++        mCloseLoopThreshold = std::rand();
++        // ensure close-loop test is possible
++        if (mCloseLoopThreshold == UINT32_MAX) {
++            mCloseLoopThreshold--;
++        }
++
++        mShortLraPeriod = std::rand();
++        if (getDynamicConfig()) {
++            mLongFrequencyShift = std::rand();
++            mLongLraPeriod =
++                    freqPeriodFormula(freqPeriodFormula(mShortLraPeriod) - mLongFrequencyShift);
++            mShortVoltageMax = std::rand();
++            mLongVoltageMax = std::rand();
++        }
++
++        mEffectDurations[Effect::CLICK] = std::rand();
++        mEffectDurations[Effect::TICK] = std::rand();
++        mEffectDurations[Effect::DOUBLE_CLICK] = std::rand();
++        mEffectDurations[Effect::HEAVY_CLICK] = std::rand();
++        mEffectDurations[Effect::TEXTURE_TICK] = mEffectDurations[Effect::TICK];
++
++        createMock(&mockapi, &mockcal);
++        createVibrator(std::move(mockapi), std::move(mockcal));
++    }
++
++    void TearDown() override { deleteVibrator(); }
++
++  protected:
++    auto getDynamicConfig() const { return GetDynamicConfig(VibratorTestTemplate::GetParam()); }
++
++    void createMock(std::unique_ptr<MockApi> *mockapi, std::unique_ptr<MockCal> *mockcal) {
++        *mockapi = std::make_unique<MockApi>();
++        *mockcal = std::make_unique<MockCal>();
++
++        mMockApi = mockapi->get();
++        mMockCal = mockcal->get();
++
++        ON_CALL(*mMockApi, destructor()).WillByDefault(Assign(&mMockApi, nullptr));
++        ON_CALL(*mMockApi, setOlLraPeriod(_)).WillByDefault(Return(true));
++        ON_CALL(*mMockApi, setActivate(_)).WillByDefault(Return(true));
++        ON_CALL(*mMockApi, setDuration(_)).WillByDefault(Return(true));
++        ON_CALL(*mMockApi, setMode(_)).WillByDefault(Return(true));
++        ON_CALL(*mMockApi, setCtrlLoop(_)).WillByDefault(Return(true));
++        ON_CALL(*mMockApi, setLraWaveShape(_)).WillByDefault(Return(true));
++        ON_CALL(*mMockApi, setOdClamp(_)).WillByDefault(Return(true));
++
++        ON_CALL(*mMockCal, destructor()).WillByDefault(Assign(&mMockCal, nullptr));
++        ON_CALL(*mMockCal, getLraPeriod(_))
++                .WillByDefault(DoAll(SetArgPointee<0>(mShortLraPeriod), Return(true)));
++        ON_CALL(*mMockCal, getCloseLoopThreshold(_))
++                .WillByDefault(DoAll(SetArgPointee<0>(mCloseLoopThreshold), Return(true)));
++        ON_CALL(*mMockCal, getDynamicConfig(_))
++                .WillByDefault(DoAll(SetArgPointee<0>(getDynamicConfig()), Return(true)));
++
++        if (getDynamicConfig()) {
++            ON_CALL(*mMockCal, getLongFrequencyShift(_))
++                    .WillByDefault(DoAll(SetArgPointee<0>(mLongFrequencyShift), Return(true)));
++            ON_CALL(*mMockCal, getShortVoltageMax(_))
++                    .WillByDefault(DoAll(SetArgPointee<0>(mShortVoltageMax), Return(true)));
++            ON_CALL(*mMockCal, getLongVoltageMax(_))
++                    .WillByDefault(DoAll(SetArgPointee<0>(mLongVoltageMax), Return(true)));
++        }
++
++        ON_CALL(*mMockCal, getClickDuration(_))
++                .WillByDefault(
++                        DoAll(SetArgPointee<0>(mEffectDurations[Effect::CLICK]), Return(true)));
++        ON_CALL(*mMockCal, getTickDuration(_))
++                .WillByDefault(
++                        DoAll(SetArgPointee<0>(mEffectDurations[Effect::TICK]), Return(true)));
++        ON_CALL(*mMockCal, getDoubleClickDuration(_))
++                .WillByDefault(DoAll(SetArgPointee<0>(mEffectDurations[Effect::DOUBLE_CLICK]),
++                                     Return(true)));
++        ON_CALL(*mMockCal, getHeavyClickDuration(_))
++                .WillByDefault(DoAll(SetArgPointee<0>(mEffectDurations[Effect::HEAVY_CLICK]),
++                                     Return(true)));
++
++        relaxMock(false);
++    }
++
++    void createVibrator(std::unique_ptr<MockApi> mockapi, std::unique_ptr<MockCal> mockcal,
++                        bool relaxed = true) {
++        if (relaxed) {
++            relaxMock(true);
++        }
++        mVibrator = ndk::SharedRefBase::make<Vibrator>(std::move(mockapi), std::move(mockcal));
++        if (relaxed) {
++            relaxMock(false);
++        }
++    }
++
++    void deleteVibrator(bool relaxed = true) {
++        if (relaxed) {
++            relaxMock(true);
++        }
++        mVibrator.reset();
++    }
++
++    void relaxMock(bool relax) {
++        auto times = relax ? AnyNumber() : Exactly(0);
++
++        Mock::VerifyAndClearExpectations(mMockApi);
++        Mock::VerifyAndClearExpectations(mMockCal);
++
++        EXPECT_CALL(*mMockApi, destructor()).Times(times);
++        EXPECT_CALL(*mMockApi, setAutocal(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setOlLraPeriod(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setActivate(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setDuration(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setState(_)).Times(times);
++        EXPECT_CALL(*mMockApi, hasRtpInput()).Times(times);
++        EXPECT_CALL(*mMockApi, setRtpInput(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setMode(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setSequencer(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setScale(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setCtrlLoop(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setLpTriggerEffect(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setLpTriggerScale(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setLraWaveShape(_)).Times(times);
++        EXPECT_CALL(*mMockApi, setOdClamp(_)).Times(times);
++        EXPECT_CALL(*mMockApi, debug(_)).Times(times);
++
++        EXPECT_CALL(*mMockCal, destructor()).Times(times);
++        EXPECT_CALL(*mMockCal, getAutocal(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getLraPeriod(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getCloseLoopThreshold(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getDynamicConfig(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getLongFrequencyShift(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getShortVoltageMax(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getLongVoltageMax(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getClickDuration(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getTickDuration(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getDoubleClickDuration(_)).Times(times);
++        EXPECT_CALL(*mMockCal, getHeavyClickDuration(_)).Times(times);
++        EXPECT_CALL(*mMockCal, debug(_)).Times(times);
++    }
++
++  protected:
++    MockApi *mMockApi;
++    MockCal *mMockCal;
++    std::shared_ptr<IVibrator> mVibrator;
++
++    EffectDuration mCloseLoopThreshold;
++    uint32_t mLongFrequencyShift;
++    uint32_t mShortLraPeriod;
++    uint32_t mLongLraPeriod;
++    uint32_t mShortVoltageMax;
++    uint32_t mLongVoltageMax;
++    std::map<Effect, EffectDuration> mEffectDurations;
++};
++
++using BasicTest = VibratorTestTemplate<>;
++
++TEST_P(BasicTest, Constructor) {
++    std::unique_ptr<MockApi> mockapi;
++    std::unique_ptr<MockCal> mockcal;
++    std::string autocalVal = std::to_string(std::rand()) + " " + std::to_string(std::rand()) + " " +
++                             std::to_string(std::rand());
++    Sequence autocalSeq, lraPeriodSeq;
++
++    EXPECT_CALL(*mMockApi, destructor()).WillOnce(DoDefault());
++    EXPECT_CALL(*mMockCal, destructor()).WillOnce(DoDefault());
++
++    deleteVibrator(false);
++
++    createMock(&mockapi, &mockcal);
++
++    EXPECT_CALL(*mMockApi, setState(true)).WillOnce(Return(true));
++
++    EXPECT_CALL(*mMockCal, getAutocal(_))
++            .InSequence(autocalSeq)
++            .WillOnce(DoAll(SetArgReferee<0>(autocalVal), Return(true)));
++    EXPECT_CALL(*mMockApi, setAutocal(autocalVal)).InSequence(autocalSeq).WillOnce(DoDefault());
++
++    EXPECT_CALL(*mMockCal, getLraPeriod(_)).InSequence(lraPeriodSeq).WillOnce(DoDefault());
++
++    EXPECT_CALL(*mMockCal, getCloseLoopThreshold(_)).WillOnce(DoDefault());
++    EXPECT_CALL(*mMockCal, getDynamicConfig(_)).WillOnce(DoDefault());
++
++    if (getDynamicConfig()) {
++        EXPECT_CALL(*mMockCal, getLongFrequencyShift(_)).WillOnce(DoDefault());
++        EXPECT_CALL(*mMockCal, getShortVoltageMax(_)).WillOnce(DoDefault());
++        EXPECT_CALL(*mMockCal, getLongVoltageMax(_)).WillOnce(DoDefault());
++    } else {
++        EXPECT_CALL(*mMockApi, setOlLraPeriod(mShortLraPeriod))
++                .InSequence(lraPeriodSeq)
++                .WillOnce(DoDefault());
++    }
++
++    EXPECT_CALL(*mMockCal, getClickDuration(_)).WillOnce(DoDefault());
++    EXPECT_CALL(*mMockCal, getTickDuration(_)).WillOnce(DoDefault());
++    EXPECT_CALL(*mMockCal, getDoubleClickDuration(_)).WillOnce(DoDefault());
++    EXPECT_CALL(*mMockCal, getHeavyClickDuration(_)).WillOnce(DoDefault());
++
++    createVibrator(std::move(mockapi), std::move(mockcal), false);
++}
++
++TEST_P(BasicTest, on) {
++    EffectDuration duration = std::rand();
++    ExpectationSet e;
++
++    e += EXPECT_CALL(*mMockApi, setCtrlLoop(_)).WillOnce(DoDefault());
++    e += EXPECT_CALL(*mMockApi, setMode("rtp")).WillOnce(DoDefault());
++    e += EXPECT_CALL(*mMockApi, setDuration(duration)).WillOnce(DoDefault());
++
++    if (getDynamicConfig()) {
++        e += EXPECT_CALL(*mMockApi, setLraWaveShape(0)).WillOnce(DoDefault());
++        e += EXPECT_CALL(*mMockApi, setOdClamp(mLongVoltageMax)).WillOnce(DoDefault());
++        e += EXPECT_CALL(*mMockApi, setOlLraPeriod(mLongLraPeriod)).WillOnce(DoDefault());
++    }
++
++    EXPECT_CALL(*mMockApi, setActivate(true)).After(e).WillOnce(DoDefault());
++
++    EXPECT_EQ(EX_NONE, mVibrator->on(duration, nullptr).getExceptionCode());
++}
++
++TEST_P(BasicTest, on_openLoop) {
++    EffectDuration duration = mCloseLoopThreshold;
++
++    relaxMock(true);
++
++    EXPECT_CALL(*mMockApi, setCtrlLoop(true)).WillOnce(DoDefault());
++
++    EXPECT_EQ(EX_NONE, mVibrator->on(duration, nullptr).getExceptionCode());
++}
++
++TEST_P(BasicTest, on_closeLoop) {
++    EffectDuration duration = mCloseLoopThreshold + 1;
++
++    relaxMock(true);
++
++    EXPECT_CALL(*mMockApi, setCtrlLoop(false)).WillOnce(DoDefault());
++
++    EXPECT_EQ(EX_NONE, mVibrator->on(duration, nullptr).getExceptionCode());
++}
++
++TEST_P(BasicTest, off) {
++    EXPECT_CALL(*mMockApi, setActivate(false)).WillOnce(DoDefault());
++
++    EXPECT_EQ(EX_NONE, mVibrator->off().getExceptionCode());
++}
++
++TEST_P(BasicTest, supportsAmplitudeControl_supported) {
++    EXPECT_CALL(*mMockApi, hasRtpInput()).WillOnce(Return(true));
++
++    int32_t capabilities;
++    EXPECT_TRUE(mVibrator->getCapabilities(&capabilities).isOk());
++    EXPECT_GT(capabilities & IVibrator::CAP_AMPLITUDE_CONTROL, 0);
++}
++
++TEST_P(BasicTest, supportsAmplitudeControl_unsupported) {
++    EXPECT_CALL(*mMockApi, hasRtpInput()).WillOnce(Return(false));
++
++    int32_t capabilities;
++    EXPECT_TRUE(mVibrator->getCapabilities(&capabilities).isOk());
++    EXPECT_EQ(capabilities & IVibrator::CAP_AMPLITUDE_CONTROL, 0);
++}
++
++TEST_P(BasicTest, setAmplitude) {
++    EffectAmplitude amplitude = static_cast<float>(std::rand()) / RAND_MAX ?: 1.0f;
++
++    EXPECT_CALL(*mMockApi, setRtpInput(amplitudeToRtpInput(amplitude))).WillOnce(Return(true));
++
++    EXPECT_EQ(EX_NONE, mVibrator->setAmplitude(amplitude).getExceptionCode());
++}
++
++TEST_P(BasicTest, supportsExternalControl_unsupported) {
++    EXPECT_CALL(*mMockApi, hasRtpInput()).WillOnce(Return(false));
++
++    int32_t capabilities;
++    EXPECT_TRUE(mVibrator->getCapabilities(&capabilities).isOk());
++    EXPECT_EQ(capabilities & IVibrator::CAP_EXTERNAL_CONTROL, 0);
++}
++
++TEST_P(BasicTest, setExternalControl_enable) {
++    EXPECT_EQ(EX_UNSUPPORTED_OPERATION, mVibrator->setExternalControl(true).getExceptionCode());
++}
++
++TEST_P(BasicTest, setExternalControl_disable) {
++    EXPECT_EQ(EX_UNSUPPORTED_OPERATION, mVibrator->setExternalControl(false).getExceptionCode());
++}
++
++INSTANTIATE_TEST_CASE_P(VibratorTests, BasicTest,
++                        ValuesIn({BasicTest::MakeParam(false), BasicTest::MakeParam(true)}),
++                        BasicTest::PrintParam);
++
++class EffectsTest : public VibratorTestTemplate<EffectTuple> {
++  public:
++    static auto GetEffectTuple(ParamType param) { return GetOtherParam<0>(param); }
++
++    static auto PrintParam(const TestParamInfo<ParamType> &info) {
++        auto prefix = VibratorTestTemplate::PrintParam(info);
++        auto tuple = GetEffectTuple(info.param);
++        auto effect = std::get<0>(tuple);
++        auto strength = std::get<1>(tuple);
++        return prefix + "_" + toString(effect) + "_" + toString(strength);
++    }
++
++  protected:
++    auto getEffectTuple() const { return GetEffectTuple(GetParam()); }
++};
++
++TEST_P(EffectsTest, perform) {
++    auto tuple = getEffectTuple();
++    auto effect = std::get<0>(tuple);
++    auto strength = std::get<1>(tuple);
++    auto seqIter = EFFECT_SEQUENCES.find(tuple);
++    auto durIter = mEffectDurations.find(effect);
++    EffectDuration duration;
++
++    if (seqIter != EFFECT_SEQUENCES.end() && durIter != mEffectDurations.end()) {
++        auto sequence = std::to_string(std::get<0>(seqIter->second)) + " 0";
++        auto scale = std::get<1>(seqIter->second);
++        ExpectationSet e;
++
++        duration = durIter->second;
++
++        e += EXPECT_CALL(*mMockApi, setSequencer(sequence)).WillOnce(Return(true));
++        e += EXPECT_CALL(*mMockApi, setScale(scale)).WillOnce(Return(true));
++        e += EXPECT_CALL(*mMockApi, setCtrlLoop(1)).WillOnce(DoDefault());
++        e += EXPECT_CALL(*mMockApi, setMode("waveform")).WillOnce(DoDefault());
++        e += EXPECT_CALL(*mMockApi, setDuration(duration)).WillOnce(DoDefault());
++
++        if (getDynamicConfig()) {
++            e += EXPECT_CALL(*mMockApi, setLraWaveShape(1)).WillOnce(DoDefault());
++            e += EXPECT_CALL(*mMockApi, setOdClamp(mShortVoltageMax)).WillOnce(DoDefault());
++            e += EXPECT_CALL(*mMockApi, setOlLraPeriod(mShortLraPeriod)).WillOnce(DoDefault());
++        }
++
++        EXPECT_CALL(*mMockApi, setActivate(true)).After(e).WillOnce(DoDefault());
++    } else {
++        duration = 0;
++    }
++
++    int32_t lengthMs;
++    ndk::ScopedAStatus status = mVibrator->perform(effect, strength, nullptr, &lengthMs);
++    if (duration) {
++        EXPECT_EQ(EX_NONE, status.getExceptionCode());
++        EXPECT_LE(duration, lengthMs);
++    } else {
++        EXPECT_EQ(EX_UNSUPPORTED_OPERATION, status.getExceptionCode());
++    }
++}
++
++TEST_P(EffectsTest, alwaysOnEnable) {
++    auto tuple = getEffectTuple();
++    auto effect = std::get<0>(tuple);
++    auto strength = std::get<1>(tuple);
++    auto seqIter = EFFECT_SEQUENCES.find(tuple);
++    bool supported = (seqIter != EFFECT_SEQUENCES.end());
++
++    if (supported) {
++        auto [index, scale] = seqIter->second;
++        EXPECT_CALL(*mMockApi, setLpTriggerEffect(index)).WillOnce(Return(true));
++        EXPECT_CALL(*mMockApi, setLpTriggerScale(scale)).WillOnce(Return(true));
++    }
++
++    ndk::ScopedAStatus status = mVibrator->alwaysOnEnable(0, effect, strength);
++    if (supported) {
++        EXPECT_EQ(EX_NONE, status.getExceptionCode());
++    } else {
++        EXPECT_EQ(EX_UNSUPPORTED_OPERATION, status.getExceptionCode());
++    }
++}
++
++INSTANTIATE_TEST_CASE_P(VibratorTests, EffectsTest,
++                        Combine(ValuesIn({false, true}),
++                                Combine(ValuesIn(ndk::enum_range<Effect>().begin(),
++                                                 ndk::enum_range<Effect>().end()),
++                                        ValuesIn(ndk::enum_range<EffectStrength>().begin(),
++                                                 ndk::enum_range<EffectStrength>().end()))),
++                        EffectsTest::PrintParam);
++
++class AlwaysOnTest : public VibratorTestTemplate<int32_t> {
++  public:
++    static auto GetId(ParamType param) { return GetOtherParam<0>(param); }
++
++    static auto PrintParam(const TestParamInfo<ParamType> &info) {
++        return std::to_string(GetId(info.param));
++    }
++
++  protected:
++    auto getId() const { return GetId(GetParam()); }
++};
++
++TEST_P(AlwaysOnTest, alwaysOnEnable) {
++    auto id = getId();
++    auto seqIter = EFFECT_SEQUENCES.begin();
++
++    std::advance(seqIter, std::rand() % EFFECT_SEQUENCES.size());
++
++    auto effect = std::get<0>(seqIter->first);
++    auto strength = std::get<1>(seqIter->first);
++    auto [index, scale] = seqIter->second;
++
++    EXPECT_CALL(*mMockApi, setLpTriggerEffect(index)).WillOnce(Return(true));
++    EXPECT_CALL(*mMockApi, setLpTriggerScale(scale)).WillOnce(Return(true));
++
++    ndk::ScopedAStatus status = mVibrator->alwaysOnEnable(id, effect, strength);
++    EXPECT_EQ(EX_NONE, status.getExceptionCode());
++}
++
++TEST_P(AlwaysOnTest, alwaysOnDisable) {
++    auto id = getId();
++
++    EXPECT_CALL(*mMockApi, setLpTriggerEffect(0)).WillOnce(Return(true));
++
++    ndk::ScopedAStatus status = mVibrator->alwaysOnDisable(id);
++    EXPECT_EQ(EX_NONE, status.getExceptionCode());
++}
++
++INSTANTIATE_TEST_CASE_P(VibratorTests, AlwaysOnTest, Combine(ValuesIn({false, true}), Range(0, 0)),
++                        AlwaysOnTest::PrintParam);
++
++}  // namespace vibrator
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/vibrator/drv2624/tests/types.h b/vibrator/drv2624/tests/types.h
+new file mode 100644
+index 00000000..103678d5
+--- /dev/null
++++ b/vibrator/drv2624/tests/types.h
+@@ -0,0 +1,27 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#ifndef ANDROID_HARDWARE_VIBRATOR_TEST_TYPES_H
++#define ANDROID_HARDWARE_VIBRATOR_TEST_TYPES_H
++
++#include <aidl/android/hardware/vibrator/IVibrator.h>
++
++using EffectAmplitude = float;
++using EffectDuration = uint32_t;
++using EffectSequence = std::tuple<uint32_t, uint8_t>;
++using EffectTuple = std::tuple<::aidl::android::hardware::vibrator::Effect,
++                               ::aidl::android::hardware::vibrator::EffectStrength>;
++
++#endif  // ANDROID_HARDWARE_VIBRATOR_TEST_TYPES_H
+diff --git a/vibrator/drv2624/tests/utils.h b/vibrator/drv2624/tests/utils.h
+new file mode 100644
+index 00000000..766ac5cc
+--- /dev/null
++++ b/vibrator/drv2624/tests/utils.h
+@@ -0,0 +1,27 @@
++/*
++ * Copyright (C) 2019 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#ifndef ANDROID_HARDWARE_VIBRATOR_TEST_UTILS_H
++#define ANDROID_HARDWARE_VIBRATOR_TEST_UTILS_H
++
++#include <cmath>
++
++#include "types.h"
++
++static inline int32_t amplitudeToRtpInput(EffectAmplitude amplitude) {
++    return std::round(amplitude * 127);
++}
++
++#endif  // ANDROID_HARDWARE_VIBRATOR_TEST_UTILS_H

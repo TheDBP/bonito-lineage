@@ -24,7 +24,7 @@ the log without failing the image.
  1 file changed, 8 insertions(+)
 
 diff --git a/device.mk b/device.mk
-index 049e9f67..f931490e 100644
+index 62fb9644..900c87ac 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -79,6 +79,14 @@ PRODUCT_CHARACTERISTICS := nosdcard

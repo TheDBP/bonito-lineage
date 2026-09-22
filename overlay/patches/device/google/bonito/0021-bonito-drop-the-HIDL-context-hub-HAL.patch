@@ -18,7 +18,7 @@ chre daemon keeps running on its own. The HAL's sepolicy goes with it.
  delete mode 100644 sepolicy/vendor/google/hal_contexthub.te
 
 diff --git a/device.mk b/device.mk
-index 773fabd6..afa7d253 100644
+index 1a4f466c..0d2d5ef5 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -422,10 +422,6 @@ PRODUCT_PACKAGES += \

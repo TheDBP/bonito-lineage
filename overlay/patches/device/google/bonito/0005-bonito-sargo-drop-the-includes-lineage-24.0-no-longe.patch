@@ -1,46 +1,39 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TheDBP <TheDBP@users.noreply.github.com>
-Date: Mon, 21 Sep 2026 10:44:59 -0400
+Date: Tue, 22 Sep 2026 08:54:10 -0400
 Subject: [PATCH] bonito/sargo: drop the includes lineage-24.0 no longer has
 
 This device tree is 22.2 and the platform is 24.0, so three includes point at files that no longer
 exist and product config stops before lunch:
 
-- hardware/google/pixel/vibrator/drv2624 -- the whole vibrator/ directory is gone from that repo on
-  24.0. drv2624 is the Pixel 3a's 2018 haptic driver.
 - hardware/google/pixel/PixelLogger -- gone from the same repo. A logging tool, not a HAL.
 - device/google/gs-common/thermal/thermal_hal -- gs-common's thermal/ is empty at the pinned branch.
 
-The vibrator and PixelLogger includes are commented rather than deleted, with the reason, because
-they are things to restore rather than things that were wrong: the vibrator HAL can be vendored
-from the 22.2 tree. The thermal include is deleted outright; what it packaged is put back by the
-thermal HAL patch later in this series. The first question is whether a 22.2 device tree configures
+The PixelLogger include is commented rather than deleted, with the reason, because it is a thing to
+restore rather than a thing that was wrong. The thermal include is deleted outright; what it
+packaged is put back by the thermal HAL patch later in this series. The vibrator include stays:
+hardware/google/pixel 0001 restores the drv2624 HAL it needs. The first question is whether a 22.2 device tree configures
 and compiles against Android 17 at all, and none of these affects that.
 
 The one other missing include, vendor/google_devices/bonito/proprietary/BoardConfigVendor.mk, is a
 `-include` and absent on 22.2 as well -- it has never been there and does not fail.
 ---
- device.mk | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ device.mk | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/device.mk b/device.mk
-index 4d697a25..0fe8bec1 100644
+index 4d697a25..b7a4cb44 100644
 --- a/device.mk
 +++ b/device.mk
-@@ -719,9 +719,10 @@ PRODUCT_PRODUCT_PROPERTIES += \
- PRODUCT_VENDOR_PROPERTIES += ro.soc.manufacturer=Qualcomm
- PRODUCT_VENDOR_PROPERTIES += ro.soc.model=SDM670
+@@ -721,7 +721,6 @@ PRODUCT_VENDOR_PROPERTIES += ro.soc.model=SDM670
  
--include hardware/google/pixel/vibrator/drv2624/device.mk
-+# lineage-24.0: hardware/google/pixel dropped vibrator/ entirely; drv2624 is a 2018 part and the
-+# HAL went with it. No haptics until it is vendored back from the 22.2 tree, which still has it.
-+#include hardware/google/pixel/vibrator/drv2624/device.mk
+ include hardware/google/pixel/vibrator/drv2624/device.mk
  include hardware/google/pixel/mm/device_legacy.mk
 -include device/google/gs-common/thermal/thermal_hal/device.mk
  
  # Citadel
  include hardware/google/pixel/citadel/citadel.mk
-@@ -730,4 +731,6 @@ include hardware/google/pixel/citadel/citadel.mk
+@@ -730,4 +729,6 @@ include hardware/google/pixel/citadel/citadel.mk
  -include hardware/google/pixel/power-libperfmgr/aidl/device.mk
  
  # Pixel Logger

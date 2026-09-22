@@ -38,7 +38,7 @@ on thermal_link_device and vendor_thermal_prop. Same as coral 0d401e37.
  create mode 100644 sepolicy/vendor/google/thermal/vendor_init.te
 
 diff --git a/device.mk b/device.mk
-index 156b67d0..773fabd6 100644
+index 89c6efbf..1a4f466c 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -25,6 +25,7 @@ PRODUCT_SOONG_NAMESPACES += \
@@ -49,9 +49,9 @@ index 156b67d0..773fabd6 100644
      hardware/google/pixel/usb \
      hardware/qcom/audio \
      hardware/qcom/sdm845/display \
-@@ -723,6 +724,12 @@ PRODUCT_VENDOR_PROPERTIES += ro.soc.model=SDM670
- # HAL went with it. No haptics until it is vendored back from the 22.2 tree, which still has it.
- #include hardware/google/pixel/vibrator/drv2624/device.mk
+@@ -721,6 +722,12 @@ PRODUCT_VENDOR_PROPERTIES += ro.soc.model=SDM670
+ 
+ include hardware/google/pixel/vibrator/drv2624/device.mk
  include hardware/google/pixel/mm/device_legacy.mk
 +# Thermal. gs-common's thermal_hal/device.mk is gone on lineage-24.0; it only ever packaged the
 +# HAL from hardware/google/pixel/thermal and named its sepolicy dir, both now done here (the

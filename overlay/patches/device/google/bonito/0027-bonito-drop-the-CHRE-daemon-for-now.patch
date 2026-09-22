@@ -15,7 +15,6 @@ commit; both have to go for a boot to complete.
 0021 dropped the HIDL context hub HAL and nothing replaced it, so no
 framework client is left for CHRE. Stop packaging the daemon until the
 DSP side is understood.
-
 ---
  device-lineage.mk | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)

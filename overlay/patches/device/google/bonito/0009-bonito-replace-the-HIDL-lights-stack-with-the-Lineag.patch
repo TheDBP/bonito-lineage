@@ -26,7 +26,7 @@ wrapper exposed.
  5 files changed, 2 insertions(+), 30 deletions(-)
 
 diff --git a/device.mk b/device.mk
-index 27a44270..fefd5c93 100644
+index a9b1b25f..fc5ee1c7 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -340,8 +340,7 @@ PRODUCT_PACKAGES += \

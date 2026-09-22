@@ -30,7 +30,7 @@ index 04c9086b..40639a63 100644
  # Parts
  PRODUCT_PACKAGES += \
 diff --git a/device.mk b/device.mk
-index fefd5c93..35bf8f39 100644
+index fc5ee1c7..184c8dec 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -434,7 +434,7 @@ PRODUCT_PACKAGES += \

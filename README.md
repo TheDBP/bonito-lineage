@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-49 patches across 13 upstream projects, applied at build time from
+50 patches across 13 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -174,9 +174,10 @@ patch is one build failure or one removed interface:
   `Cannot find framework matrix at FCM version 5`. Coral/sunfish made the same move upstream.
 - **0015 Bluetooth audio HIDL 2.0 → AIDL** and **0016 drop power.stats@1.0** — neither HIDL package
   is in any matrix ≥ 7, so `checkUnusedHals` rejects the instances. The AIDL BT audio impl brings
-  its own VINTF fragment. 0016 also deletes `powerstats/` (the service source): it was the only
-  user of `hardware/google/pixel/powerstats`, which 24.0 removed, and carrying that back for a
-  binary that does not ship is dead weight. An AIDL power.stats HAL is a fresh patch when written.
+  its own VINTF fragment. 0016 also deletes `powerstats/`, the HIDL service source. It is not the
+  only user of `hardware/google/pixel/powerstats`: `vendor/google/bonito`'s `libnos_citadeld_proxy`
+  needs `pixelpowerstats_provider_aidl_interface-cpp` from it, so that project is carried back by
+  `hardware/google/pixel` 0002 regardless. 0028 serves the same data over AIDL.
 - **0017 drop the PixelLogger sepolicy** — 0005 removed `PixelLogger.mk`, which was what put
   `hardware/google/pixel-sepolicy/logger_app` (the `logger_app` type) on the sepolicy dirs; the
   device's own `logger_app.te` then fails checkpolicy with `unknown type`. Same as coral `9e807a47`.
@@ -235,6 +236,19 @@ patch is one build failure or one removed interface:
   camera provider, and surfaceflinger's restart limit reboots into recovery. Lineage kept the probe
   behind soong config `libui.legacy_gralloc` (frameworks/native `c7d417fbe1`); `device-lineage.mk`
   sets it. One module builds both the system and vendor libui. Rebuild `systemimage vendorimage`.
+- **0027 drop the CHRE daemon** — `chre_daemon_msm` cannot load its DSP image: the SLPI rejects
+  `libchre_slpi_skel.so` with `undefined symbol #25 __sensors_island_start`. It then exits badly
+  enough, often enough, to trip init's updatable-crash path and reboot the device. Dropping it
+  costs sensor offload to the DSP; the ordinary sensor HAL is unaffected.
+- **0028 port the power.stats HAL to AIDL** — restores what 0016 had to drop. `power.stats@1.0` is
+  in no matrix ≥ 7, but the AIDL interface is in matrix 7, so the same data passes
+  `checkUnusedHals`. `hardware/google/pixel/powerstats` (back for citadeld anyway) carries the AIDL
+  `PowerStats`, the generic and wlan providers, the rc and the VINTF fragment, so the device only
+  supplies a `main()` naming its rails. The sysfs formats are unchanged from the HIDL era, so the
+  parser configs port verbatim: RPMh `master_stats` for APSS/MPSS/ADSP/CDSP, `system_sleep/stats`
+  for the AOSD and CXSD domains, `wlan0/power_stats` when debuggable. Citadel is not carried over —
+  it was fed over the old vndbinder `power.stats-vendor` interface, which the citadeld blob speaks
+  and the AIDL provider does not. No sepolicy change is needed.
 
 ### `kernel/google/msm-4.9`
 

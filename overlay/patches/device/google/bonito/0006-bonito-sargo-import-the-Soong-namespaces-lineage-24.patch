@@ -42,7 +42,7 @@ index 3d0dcf0c..af06c92b 100644
  }
  
 diff --git a/device.mk b/device.mk
-index 0fe8bec1..acf01159 100644
+index b7a4cb44..c29e665a 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -22,9 +22,14 @@ PRODUCT_SOONG_NAMESPACES += \

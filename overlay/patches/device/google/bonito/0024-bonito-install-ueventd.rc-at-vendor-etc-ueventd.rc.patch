@@ -15,7 +15,7 @@ abort in a loop and the phone sits on the Google logo.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/device.mk b/device.mk
-index f931490e..20b7be38 100644
+index 900c87ac..61b50b97 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -93,7 +93,7 @@ PRODUCT_COPY_FILES += \

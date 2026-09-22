@@ -33,7 +33,7 @@ HealthInfo overloads for everything else.
  create mode 100644 health/android.hardware.health-service.bonito.xml
 
 diff --git a/device.mk b/device.mk
-index afa7d253..049e9f67 100644
+index 0d2d5ef5..62fb9644 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -328,8 +328,7 @@ PRODUCT_PROPERTY_OVERRIDES += \

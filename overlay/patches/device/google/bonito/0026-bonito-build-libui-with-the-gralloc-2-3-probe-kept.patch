@@ -17,7 +17,6 @@ libui.legacy_gralloc (frameworks/native c7d417fbe1, "libui: Restore
 support for gralloc 2/3"). Set it. Both the system and the vendor
 copy of libui are built from the same module, so one switch covers
 surfaceflinger and the vendor HALs.
-
 ---
  device-lineage.mk | 6 ++++++
  1 file changed, 6 insertions(+)

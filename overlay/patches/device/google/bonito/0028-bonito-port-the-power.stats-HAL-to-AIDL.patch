@@ -1,0 +1,195 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 09:42:11 -0400
+Subject: [PATCH] bonito: port the power.stats HAL to AIDL
+
+Patch 0016 dropped the HIDL power.stats HAL because
+android.hardware.power.stats@1.0 is not in any compatibility matrix at
+FCM level 7, which is what this device targets, so checkUnusedHals
+rejected the manifest entry. The AIDL interface *is* in matrix 7, so the
+same subsystem residency data can be served by porting the service.
+
+hardware/google/pixel's powerstats/ is already back in the tree (it is
+what libnos_citadeld_proxy needs), and it carries the AIDL PowerStats
+implementation, the generic and wlan residency providers, the service rc
+and the vintf fragment. All this needs is a main() naming the same rails
+the HIDL service used.
+
+The sysfs formats are unchanged, so the parser configs port across
+verbatim: RPMh master_stats for APSS/MPSS/ADSP/CDSP, system_sleep/stats
+for the AOSD and CXSD power domains, and wlan0/power_stats on a
+debuggable build.
+
+Citadel is not carried over. It was fed by the old vndbinder
+power.stats-vendor service, which only the HIDL-era provider interface
+speaks; the AIDL equivalent would need the citadeld blob to use the new
+interface, which it does not.
+
+No sepolicy change: hardware/google/pixel-sepolicy/powerstats already
+labels the AIDL binary and the qcom rules already grant the three
+sysfs/debugfs reads.
+
+---
+ device.mk              |   4 ++
+ powerstats/Android.bp  |  23 +++++++++
+ powerstats/service.cpp | 106 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 133 insertions(+)
+ create mode 100644 powerstats/Android.bp
+ create mode 100644 powerstats/service.cpp
+
+diff --git a/device.mk b/device.mk
+index 61b50b97..ea2f9aad 100644
+--- a/device.mk
++++ b/device.mk
+@@ -215,6 +215,10 @@ PRODUCT_COPY_FILES += \
+     frameworks/native/data/etc/android.hardware.strongbox_keystore.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.strongbox_keystore.xml \
+     frameworks/native/data/etc/android.software.ipsec_tunnels.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.ipsec_tunnels.xml \
+ 
++# powerstats HAL
++PRODUCT_PACKAGES += \
++    android.hardware.power.stats-service.pixel
++
+ PRODUCT_COPY_FILES += \
+     $(LOCAL_PATH)/powerhint.json:$(TARGET_COPY_OUT_VENDOR)/etc/powerhint.json
+ 
+diff --git a/powerstats/Android.bp b/powerstats/Android.bp
+new file mode 100644
+index 00000000..b412ceae
+--- /dev/null
++++ b/powerstats/Android.bp
+@@ -0,0 +1,23 @@
++//
++// Copyright (C) 2018 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++cc_binary {
++    name: "android.hardware.power.stats-service.pixel",
++    defaults: ["powerstats_pixel_binary_defaults"],
++    srcs: ["service.cpp"],
++}
+diff --git a/powerstats/service.cpp b/powerstats/service.cpp
+new file mode 100644
+index 00000000..0c497116
+--- /dev/null
++++ b/powerstats/service.cpp
+@@ -0,0 +1,106 @@
++/*
++ * Copyright (C) 2018 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#define LOG_TAG "android.hardware.power.stats-service.pixel"
++
++#include <PowerStatsAidl.h>
++#include <dataproviders/GenericStateResidencyDataProvider.h>
++#include <dataproviders/WlanStateResidencyDataProvider.h>
++
++#include <android-base/logging.h>
++#include <android-base/properties.h>
++#include <android/binder_manager.h>
++#include <android/binder_process.h>
++
++using aidl::android::hardware::power::stats::GenericStateResidencyDataProvider;
++using aidl::android::hardware::power::stats::PowerStats;
++using aidl::android::hardware::power::stats::WlanStateResidencyDataProvider;
++
++using StateResidencyConfig = GenericStateResidencyDataProvider::StateResidencyConfig;
++using PowerEntityConfig = GenericStateResidencyDataProvider::PowerEntityConfig;
++
++void addRpmhStats(std::shared_ptr<PowerStats> p) {
++    const uint64_t RPM_CLK = 19200;  // RPM runs at 19.2Mhz. Divide by 19200 for msec
++    std::function<uint64_t(uint64_t)> rpmConvertToMs = [](uint64_t a) { return a / RPM_CLK; };
++
++    const std::vector<StateResidencyConfig> rpmStateResidencyConfigs = {
++            {.name = "Sleep",
++             .entryCountSupported = true,
++             .entryCountPrefix = "Sleep Count:",
++             .totalTimeSupported = true,
++             .totalTimePrefix = "Sleep Accumulated Duration:",
++             .totalTimeTransform = rpmConvertToMs,
++             .lastEntrySupported = true,
++             .lastEntryPrefix = "Sleep Last Entered At:",
++             .lastEntryTransform = rpmConvertToMs}};
++
++    // Each subsystem is a section of master_stats headed by its own name.
++    p->addStateResidencyDataProvider(std::make_unique<GenericStateResidencyDataProvider>(
++            "/sys/power/rpmh_stats/master_stats",
++            std::vector<PowerEntityConfig>{
++                    {rpmStateResidencyConfigs, "APSS", "APSS"},
++                    {rpmStateResidencyConfigs, "MPSS", "MPSS"},
++                    {rpmStateResidencyConfigs, "ADSP", "ADSP"},
++                    {rpmStateResidencyConfigs, "CDSP", "CDSP"},
++            }));
++}
++
++void addSocStats(std::shared_ptr<PowerStats> p) {
++    const std::vector<StateResidencyConfig> socStateResidencyConfigs = {
++            {.name = "AOSD",
++             .header = "RPM Mode:aosd",
++             .entryCountSupported = true,
++             .entryCountPrefix = "count:",
++             .totalTimeSupported = true,
++             .totalTimePrefix = "actual last sleep(msec):",
++             .lastEntrySupported = false},
++            {.name = "CXSD",
++             .header = "RPM Mode:cxsd",
++             .entryCountSupported = true,
++             .entryCountPrefix = "count:",
++             .totalTimeSupported = true,
++             .totalTimePrefix = "actual last sleep(msec):",
++             .lastEntrySupported = false}};
++
++    p->addStateResidencyDataProvider(std::make_unique<GenericStateResidencyDataProvider>(
++            "/sys/power/system_sleep/stats",
++            std::vector<PowerEntityConfig>{{socStateResidencyConfigs, "SoC"}}));
++}
++
++void addWlanStats(std::shared_ptr<PowerStats> p) {
++    // The wlan stats live in debugfs, which is only readable on a debuggable build.
++    if (!::android::base::GetBoolProperty("ro.debuggable", false)) {
++        return;
++    }
++    p->addStateResidencyDataProvider(
++            std::make_unique<WlanStateResidencyDataProvider>("WLAN", "/d/wlan0/power_stats"));
++}
++
++int main() {
++    ABinderProcess_setThreadPoolMaxThreadCount(0);
++    std::shared_ptr<PowerStats> p = ndk::SharedRefBase::make<PowerStats>();
++
++    addRpmhStats(p);
++    addSocStats(p);
++    addWlanStats(p);
++
++    const std::string instance = std::string() + PowerStats::descriptor + "/default";
++    binder_status_t status = AServiceManager_addService(p->asBinder().get(), instance.c_str());
++    CHECK_EQ(status, STATUS_OK);
++
++    ABinderProcess_joinThreadPool();
++    return EXIT_FAILURE;  // should not reach
++}
