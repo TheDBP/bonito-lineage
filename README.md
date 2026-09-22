@@ -132,7 +132,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-41 patches across 8 upstream projects, applied at build time from
+49 patches across 13 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -356,6 +356,22 @@ The blob repo (TheMuppets, lineage-22.2 branch — there is no 24.0 one). The pa
   so hwcomposer.qcom no longer linked. The hook toggled panel high-brightness mode through the
   Google light HAL's `setHbm()` when an HDR layer covered more than half the screen; the AIDL
   lights HAL has no such call. Backlight brightness is unaffected (sysfs write).
+
+### `external/tinyxml2`
+
+- **0001 revert "Upgrade tinyxml2 to 11.0.0"** — 11.0.0 changed `DynArray`/`MemPoolT` to hold
+  their sizes as `size_t` rather than `int`, which grows every embedded `DynArray` by 8 bytes and
+  with it `sizeof(XMLDocument)`. `camera.sdm710.so` stack-allocates an `XMLDocument`:
+  `ImageSensorUtils::ReadSensorCalibration()` parses `camera_imu_average_calibration.xml` into one
+  on its stack, sized for the tinyxml2 the blob was built against. The 11.0.0 constructor writes
+  past that reservation and over the register save area — caught with a watchpoint on the saved
+  slot, which trapped the write inside `/vendor/lib64/libtinyxml2.so`. The register is `x20`,
+  where `ImageSensorModuleData::GetStaticCaps()` keeps its `TuningDataManager`; the epilogue
+  restores it as NULL and `GetChromatix()` dereferences it, so the camera provider SIGSEGVs before
+  registering and the device enumerates zero cameras. Nothing in the logs shows it — every CamX
+  message matches a working build, because no CamX state is wrong. Not bonito-specific: any
+  prebuilt CamX HAL that stack-allocates an `XMLDocument` is affected. The proper fix is a vendor
+  variant pinned to the 10.0.0 ABI so the platform can keep 11.
 
 ### `system/core`, `system/vold`
 

@@ -1,0 +1,783 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 07:30:39 -0400
+Subject: [PATCH] Revert "Upgrade tinyxml2 to 11.0.0"
+
+11.0.0 changed DynArray and MemPoolT to hold their sizes as size_t
+instead of int:
+
+  -template <class T, int INITIAL_SIZE>
+  +template <class T, size_t INITIAL_SIZE>
+  -    int Size() const
+  +    size_t Size() const
+
+That grows every embedded DynArray by 8 bytes, and XMLDocument embeds
+several of them, so sizeof(XMLDocument) grows with it.
+
+Prebuilt camera HALs stack-allocate an XMLDocument. bonito's
+camera.sdm710.so is one: CamX::ImageSensorUtils::ReadSensorCalibration()
+parses camera_imu_average_calibration.xml into an XMLDocument on its
+stack, with the space reserved when the blob was compiled against a
+tinyxml2 whose XMLDocument was smaller. With 11.0.0 the constructor
+writes past that reservation and over the register save area --
+confirmed with a watchpoint on the saved slot, which trapped the write
+inside /vendor/lib64/libtinyxml2.so.
+
+The register it lands on is x20, which
+ImageSensorModuleData::GetStaticCaps() is holding its TuningDataManager
+in. The epilogue restores it as NULL, GetStaticCaps() then calls
+GetTunedColorCorrectionData(nullptr, ...), and TuningDataManager::
+GetChromatix() dereferences it. The camera provider SIGSEGVs before
+registering, so the device enumerates zero cameras.
+
+Nothing in the logs shows this: every CamX message is identical to a
+working build, because no CamX state is wrong -- a register is trampled
+underneath it.
+
+Confirmed by bind-mounting 10.0.0's libtinyxml2.so over the 11.0.0 one
+on a running 24.0 device: the provider survives and cameraserver
+enumerates 2 cameras. Revert until the vendor copy can be pinned
+separately from the platform one.
+
+---
+ .github/workflows/test.yml   |   4 +-
+ CMakeLists.txt               |  22 ++---
+ METADATA                     |  13 ++-
+ contrib/html5-printer.cpp    |   2 +-
+ dox                          |   2 +-
+ meson.build                  |   2 +-
+ resources/dream.xml          |   0
+ resources/utf8test.xml       |   0
+ resources/utf8testverify.xml |   0
+ tinyxml2.cpp                 | 168 +++++++++++++++++++----------------
+ tinyxml2.h                   |  75 ++++++++--------
+ xmltest.cpp                  |  37 +-------
+ 12 files changed, 152 insertions(+), 173 deletions(-)
+ mode change 100644 => 100755 resources/dream.xml
+ mode change 100644 => 100755 resources/utf8test.xml
+ mode change 100644 => 100755 resources/utf8testverify.xml
+ mode change 100644 => 100755 tinyxml2.cpp
+ mode change 100644 => 100755 tinyxml2.h
+ mode change 100644 => 100755 xmltest.cpp
+
+diff --git a/.github/workflows/test.yml b/.github/workflows/test.yml
+index 475e7e6..74d5e1c 100644
+--- a/.github/workflows/test.yml
++++ b/.github/workflows/test.yml
+@@ -31,10 +31,10 @@ jobs:
+     runs-on: ${{ matrix.os }}
+     steps:
+       # System set-up
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v2
+       - uses: ilammy/msvc-dev-cmd@v1
+       - uses: seanmiddleditch/gha-setup-ninja@master
+-      - uses: jwlawson/actions-setup-cmake@v2
++      - uses: jwlawson/actions-setup-cmake@v1.8
+         with:
+           cmake-version: ${{ matrix.cmake }}
+ 
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b7bdf86..7632022 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ cmake_minimum_required(VERSION 3.15)
+-project(tinyxml2 VERSION 11.0.0)
++project(tinyxml2 VERSION 10.0.0)
+ 
+ include(CTest)
+ option(tinyxml2_BUILD_TESTING "Build tests for tinyxml2" "${BUILD_TESTING}")
+@@ -63,9 +63,7 @@ endif ()
+ include(GNUInstallDirs)
+ include(CMakePackageConfigHelpers)
+ 
+-## Custom settings
+-option(tinyxml2_INSTALL_PKGCONFIG "Create and install pkgconfig files" ON)
+-
++## Custom locations
+ set(tinyxml2_INSTALL_PKGCONFIGDIR "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+     CACHE PATH "Directory for pkgconfig files")
+ 
+@@ -123,12 +121,10 @@ install(
+ 
+ ## pkg-config
+ 
+-if (tinyxml2_INSTALL_PKGCONFIG)
+-    configure_file(cmake/tinyxml2.pc.in tinyxml2.pc.gen @ONLY)
+-    file(GENERATE OUTPUT tinyxml2.pc INPUT "${CMAKE_CURRENT_BINARY_DIR}/tinyxml2.pc.gen")
+-    install(
+-        FILES "${CMAKE_CURRENT_BINARY_DIR}/tinyxml2.pc"
+-        DESTINATION "${tinyxml2_INSTALL_PKGCONFIGDIR}"
+-        COMPONENT tinyxml2_development
+-    )
+-endif ()
++configure_file(cmake/tinyxml2.pc.in tinyxml2.pc.gen @ONLY)
++file(GENERATE OUTPUT tinyxml2.pc INPUT "${CMAKE_CURRENT_BINARY_DIR}/tinyxml2.pc.gen")
++install(
++    FILES "${CMAKE_CURRENT_BINARY_DIR}/tinyxml2.pc"
++    DESTINATION "${tinyxml2_INSTALL_PKGCONFIGDIR}"
++    COMPONENT tinyxml2_development
++)
+diff --git a/METADATA b/METADATA
+index 1c5315c..2afa767 100644
+--- a/METADATA
++++ b/METADATA
+@@ -1,24 +1,23 @@
+ # This project was upgraded with external_updater.
+ # Usage: tools/external_updater/updater.sh update external/tinyxml2
+-# For more info, check https://cs.android.com/android/platform/superproject/main/+/main:tools/external_updater/README.md
++# For more info, check https://cs.android.com/android/platform/superproject/+/main:tools/external_updater/README.md
+ 
+ name: "tinyxml2"
+ description: "TinyXML-2 is a simple, small, efficient, C++ XML parser that can be easily integrating into other programs."
+ third_party {
+   license_type: RESTRICTED
+   security {
+-    tag: "NVD-CPE2.3:cpe:/a:tinyxml2_project:tinyxml2:11.0.0"
++    tag: "NVD-CPE2.3:cpe:/a:tinyxml2_project:tinyxml2:10.0.0"
+   }
+   last_upgrade_date {
+-    year: 2025
+-    month: 7
+-    day: 24
++    year: 2024
++    month: 4
++    day: 12
+   }
+   homepage: "https://github.com/leethomason/tinyxml2"
+   identifier {
+     type: "Git"
+     value: "https://github.com/leethomason/tinyxml2.git"
+-    version: "9148bdf719e997d1f474be6bcc7943881046dba1"
+-    closest_version: "11.0.0"
++    version: "10.0.0"
+   }
+ }
+diff --git a/contrib/html5-printer.cpp b/contrib/html5-printer.cpp
+index 1aeb3cc..e9a423d 100644
+--- a/contrib/html5-printer.cpp
++++ b/contrib/html5-printer.cpp
+@@ -7,7 +7,7 @@
+ 
+ //  In HTML5, there are 16 so-called "void" elements.  "void elements" NEVER have
+ //  inner content (but they MAY have attributes), and are assumed to be self-closing.
+-//  An example of a self-closing HTML5 element is "<br/>" (line break)
++//  An example of a self-closig HTML5 element is "<br/>" (line break)
+ //  All other elements are called "non-void" and MUST never self-close.
+ //  Examples: "<div class='lolcats'></div>".
+ 
+diff --git a/dox b/dox
+index 5dc1671..2d23d73 100644
+--- a/dox
++++ b/dox
+@@ -38,7 +38,7 @@ PROJECT_NAME           = "TinyXML-2"
+ # could be handy for archiving the generated documentation or if some version
+ # control system is used.
+ 
+-PROJECT_NUMBER = 11.0.0
++PROJECT_NUMBER = 10.0.0
+ 
+ # Using the PROJECT_BRIEF tag one can provide an optional one line description
+ # for a project that appears at the top of each page and should give viewer a
+diff --git a/meson.build b/meson.build
+index cd4c3fa..b8b41fe 100644
+--- a/meson.build
++++ b/meson.build
+@@ -22,7 +22,7 @@
+ project(
+     'tinyxml2',
+     ['cpp'],
+-    version : '11.0.0',
++    version : '10.0.0',
+     meson_version : '>= 0.49.0',
+ )
+ 
+diff --git a/resources/dream.xml b/resources/dream.xml
+old mode 100644
+new mode 100755
+diff --git a/resources/utf8test.xml b/resources/utf8test.xml
+old mode 100644
+new mode 100755
+diff --git a/resources/utf8testverify.xml b/resources/utf8testverify.xml
+old mode 100644
+new mode 100755
+diff --git a/tinyxml2.cpp b/tinyxml2.cpp
+old mode 100644
+new mode 100755
+index 66ef0c9..c5c4870
+--- a/tinyxml2.cpp
++++ b/tinyxml2.cpp
+@@ -24,7 +24,7 @@ distribution.
+ #include "tinyxml2.h"
+ 
+ #include <new>		// yes, this one new style header, is in the Android SDK.
+-#if defined(ANDROID_NDK) || defined(__BORLANDC__) || defined(__QNXNTO__) || defined(__CC_ARM)
++#if defined(ANDROID_NDK) || defined(__BORLANDC__) || defined(__QNXNTO__)
+ #   include <stddef.h>
+ #   include <stdarg.h>
+ #else
+@@ -106,9 +106,14 @@ distribution.
+ #elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || defined(__CYGWIN__)
+ 	#define TIXML_FSEEK fseeko
+ 	#define TIXML_FTELL ftello
+-#elif defined(__ANDROID__) && __ANDROID_API__ > 24
+-	#define TIXML_FSEEK fseeko64
+-	#define TIXML_FTELL ftello64
++#elif defined(__ANDROID__) 
++    #if __ANDROID_API__ > 24
++        #define TIXML_FSEEK fseeko64
++        #define TIXML_FTELL ftello64
++    #else
++        #define TIXML_FSEEK fseeko
++        #define TIXML_FTELL ftello
++    #endif
+ #else
+ 	#define TIXML_FSEEK fseek
+ 	#define TIXML_FTELL ftell
+@@ -234,13 +239,13 @@ char* StrPair::ParseName( char* p )
+     if ( !p || !(*p) ) {
+         return 0;
+     }
+-    if ( !XMLUtil::IsNameStartChar( static_cast<unsigned char>(*p) ) ) {
++    if ( !XMLUtil::IsNameStartChar( (unsigned char) *p ) ) {
+         return 0;
+     }
+ 
+     char* const start = p;
+     ++p;
+-    while ( *p && XMLUtil::IsNameChar( static_cast<unsigned char>(*p) ) ) {
++    while ( *p && XMLUtil::IsNameChar( (unsigned char) *p ) ) {
+         ++p;
+     }
+ 
+@@ -467,94 +472,102 @@ void XMLUtil::ConvertUTF32ToUTF8( unsigned long input, char* output, int* length
+ }
+ 
+ 
+-const char* XMLUtil::GetCharacterRef(const char* p, char* value, int* length)
++const char* XMLUtil::GetCharacterRef( const char* p, char* value, int* length )
+ {
+-    // Assume an entity, and pull it out.
++    // Presume an entity, and pull it out.
+     *length = 0;
+ 
+-    static const uint32_t MAX_CODE_POINT = 0x10FFFF;
+-
+-    if (*(p + 1) == '#' && *(p + 2)) {
+-        uint32_t ucs = 0;
++    if ( *(p+1) == '#' && *(p+2) ) {
++        unsigned long ucs = 0;
++        TIXMLASSERT( sizeof( ucs ) >= 4 );
+         ptrdiff_t delta = 0;
+-        uint32_t mult = 1;
++        unsigned mult = 1;
+         static const char SEMICOLON = ';';
+ 
+-        bool hex = false;
+-        uint32_t radix = 10;
+-        const char* q = 0;
+-        char terminator = '#';
+-
+-        if (*(p + 2) == 'x') {
++        if ( *(p+2) == 'x' ) {
+             // Hexadecimal.
+-            hex = true;
+-            radix = 16;
+-            terminator = 'x';
++            const char* q = p+3;
++            if ( !(*q) ) {
++                return 0;
++            }
+ 
+-            q = p + 3;
+-        }
+-        else {
+-            // Decimal.
+-            q = p + 2;
+-        }
+-        if (!(*q)) {
+-            return 0;
+-        }
++            q = strchr( q, SEMICOLON );
+ 
+-        q = strchr(q, SEMICOLON);
+-        if (!q) {
+-            return 0;
+-        }
+-        TIXMLASSERT(*q == SEMICOLON);
++            if ( !q ) {
++                return 0;
++            }
++            TIXMLASSERT( *q == SEMICOLON );
+ 
+-        delta = q - p;
+-        --q;
++            delta = q-p;
++            --q;
+ 
+-        while (*q != terminator) {
+-            uint32_t digit = 0;
++            while ( *q != 'x' ) {
++                unsigned int digit = 0;
+ 
+-            if (*q >= '0' && *q <= '9') {
+-                digit = *q - '0';
+-            }
+-            else if (hex && (*q >= 'a' && *q <= 'f')) {
+-                digit = *q - 'a' + 10;
+-            }
+-            else if (hex && (*q >= 'A' && *q <= 'F')) {
+-                digit = *q - 'A' + 10;
++                if ( *q >= '0' && *q <= '9' ) {
++                    digit = *q - '0';
++                }
++                else if ( *q >= 'a' && *q <= 'f' ) {
++                    digit = *q - 'a' + 10;
++                }
++                else if ( *q >= 'A' && *q <= 'F' ) {
++                    digit = *q - 'A' + 10;
++                }
++                else {
++                    return 0;
++                }
++                TIXMLASSERT( digit < 16 );
++                TIXMLASSERT( digit == 0 || mult <= UINT_MAX / digit );
++                const unsigned int digitScaled = mult * digit;
++                TIXMLASSERT( ucs <= ULONG_MAX - digitScaled );
++                ucs += digitScaled;
++                TIXMLASSERT( mult <= UINT_MAX / 16 );
++                mult *= 16;
++                --q;
+             }
+-            else {
++        }
++        else {
++            // Decimal.
++            const char* q = p+2;
++            if ( !(*q) ) {
+                 return 0;
+             }
+-            TIXMLASSERT(digit < radix);
+-
+-            const unsigned int digitScaled = mult * digit;
+-            ucs += digitScaled;
+-            mult *= radix;       
+-            
+-            // Security check: could a value exist that is out of range?
+-            // Easily; limit to the MAX_CODE_POINT, which also allows for a
+-            // bunch of leading zeroes.
+-            if (mult > MAX_CODE_POINT) {
+-                mult = MAX_CODE_POINT;
++
++            q = strchr( q, SEMICOLON );
++
++            if ( !q ) {
++                return 0;
+             }
++            TIXMLASSERT( *q == SEMICOLON );
++
++            delta = q-p;
+             --q;
+-        }
+-        // Out of range:
+-        if (ucs > MAX_CODE_POINT) {
+-            return 0;
++
++            while ( *q != '#' ) {
++                if ( *q >= '0' && *q <= '9' ) {
++                    const unsigned int digit = *q - '0';
++                    TIXMLASSERT( digit < 10 );
++                    TIXMLASSERT( digit == 0 || mult <= UINT_MAX / digit );
++                    const unsigned int digitScaled = mult * digit;
++                    TIXMLASSERT( ucs <= ULONG_MAX - digitScaled );
++                    ucs += digitScaled;
++                }
++                else {
++                    return 0;
++                }
++                TIXMLASSERT( mult <= UINT_MAX / 10 );
++                mult *= 10;
++                --q;
++            }
+         }
+         // convert the UCS to UTF-8
+-        ConvertUTF32ToUTF8(ucs, value, length);
+-		if (length == 0) {
+-            // If length is 0, there was an error. (Security? Bad input?)
+-            // Fail safely.
+-			return 0;
+-		}
++        ConvertUTF32ToUTF8( ucs, value, length );
+         return p + delta + 1;
+     }
+-    return p + 1;
++    return p+1;
+ }
+ 
++
+ void XMLUtil::ToStr( int v, char* buffer, int bufferSize )
+ {
+     TIXML_SNPRINTF( buffer, bufferSize, "%d", v );
+@@ -597,7 +610,7 @@ void XMLUtil::ToStr( int64_t v, char* buffer, int bufferSize )
+ void XMLUtil::ToStr( uint64_t v, char* buffer, int bufferSize )
+ {
+     // horrible syntax trick to make the compiler happy about %llu
+-    TIXML_SNPRINTF(buffer, bufferSize, "%llu", static_cast<unsigned long long>(v));
++    TIXML_SNPRINTF(buffer, bufferSize, "%llu", (long long)v);
+ }
+ 
+ bool XMLUtil::ToInt(const char* str, int* value)
+@@ -692,7 +705,7 @@ bool XMLUtil::ToInt64(const char* str, int64_t* value)
+ bool XMLUtil::ToUnsigned64(const char* str, uint64_t* value) {
+     unsigned long long v = 0;	// horrible syntax trick to make the compiler happy about %llu
+     if(TIXML_SSCANF(str, IsPrefixHex(str) ? "%llx" : "%llu", &v) == 1) {
+-        *value = static_cast<uint64_t>(v);
++        *value = (uint64_t)v;
+         return true;
+     }
+     return false;
+@@ -1969,7 +1982,7 @@ char* XMLElement::ParseAttributes( char* p, int* curLineNumPtr )
+         }
+ 
+         // attribute.
+-        if (XMLUtil::IsNameStartChar( static_cast<unsigned char>(*p) ) ) {
++        if (XMLUtil::IsNameStartChar( (unsigned char) *p ) ) {
+             XMLAttribute* attrib = CreateAttribute();
+             TIXMLASSERT( attrib );
+             attrib->_parseLineNum = _document->_parseCurLineNum;
+@@ -2213,7 +2226,7 @@ void XMLDocument::MarkInUse(const XMLNode* const node)
+ 	TIXMLASSERT(node);
+ 	TIXMLASSERT(node->_parent == 0);
+ 
+-	for (size_t i = 0; i < _unlinked.Size(); ++i) {
++	for (int i = 0; i < _unlinked.Size(); ++i) {
+ 		if (node == _unlinked[i]) {
+ 			_unlinked.SwapRemove(i);
+ 			break;
+@@ -2496,7 +2509,7 @@ void XMLDocument::ClearError() {
+ 
+ void XMLDocument::SetError( XMLError error, int lineNum, const char* format, ... )
+ {
+-    TIXMLASSERT(error >= 0 && error < XML_ERROR_COUNT);
++    TIXMLASSERT( error >= 0 && error < XML_ERROR_COUNT );
+     _errorID = error;
+     _errorLineNum = lineNum;
+ 	_errorStr.Reset();
+@@ -2505,8 +2518,7 @@ void XMLDocument::SetError( XMLError error, int lineNum, const char* format, ...
+     char* buffer = new char[BUFFER_SIZE];
+ 
+     TIXMLASSERT(sizeof(error) <= sizeof(int));
+-    TIXML_SNPRINTF(buffer, BUFFER_SIZE, "Error=%s ErrorID=%d (0x%x) Line number=%d",
+-        ErrorIDToName(error), static_cast<int>(error), static_cast<unsigned int>(error), lineNum);
++    TIXML_SNPRINTF(buffer, BUFFER_SIZE, "Error=%s ErrorID=%d (0x%x) Line number=%d", ErrorIDToName(error), int(error), int(error), lineNum);
+ 
+ 	if (format) {
+ 		size_t len = strlen(buffer);
+diff --git a/tinyxml2.h b/tinyxml2.h
+old mode 100644
+new mode 100755
+index 8179f57..7586f7b
+--- a/tinyxml2.h
++++ b/tinyxml2.h
+@@ -96,11 +96,11 @@ distribution.
+ /* Versioning, past 1.0.14:
+ 	http://semver.org/
+ */
+-static const int TIXML2_MAJOR_VERSION = 11;
++static const int TIXML2_MAJOR_VERSION = 10;
+ static const int TIXML2_MINOR_VERSION = 0;
+ static const int TIXML2_PATCH_VERSION = 0;
+ 
+-#define TINYXML2_MAJOR_VERSION 11
++#define TINYXML2_MAJOR_VERSION 10
+ #define TINYXML2_MINOR_VERSION 0
+ #define TINYXML2_PATCH_VERSION 0
+ 
+@@ -199,7 +199,7 @@ private:
+ 	Has a small initial memory pool, so that low or no usage will not
+ 	cause a call to new/delete
+ */
+-template <class T, size_t INITIAL_SIZE>
++template <class T, int INITIAL_SIZE>
+ class DynArray
+ {
+ public:
+@@ -227,8 +227,9 @@ public:
+         ++_size;
+     }
+ 
+-    T* PushArr( size_t count ) {
+-        TIXMLASSERT( _size <= SIZE_MAX - count );
++    T* PushArr( int count ) {
++        TIXMLASSERT( count >= 0 );
++        TIXMLASSERT( _size <= INT_MAX - count );
+         EnsureCapacity( _size+count );
+         T* ret = &_mem[_size];
+         _size += count;
+@@ -241,7 +242,7 @@ public:
+         return _mem[_size];
+     }
+ 
+-    void PopArr( size_t count ) {
++    void PopArr( int count ) {
+         TIXMLASSERT( _size >= count );
+         _size -= count;
+     }
+@@ -250,13 +251,13 @@ public:
+         return _size == 0;
+     }
+ 
+-    T& operator[](size_t i) {
+-        TIXMLASSERT( i < _size );
++    T& operator[](int i)				{
++        TIXMLASSERT( i>= 0 && i < _size );
+         return _mem[i];
+     }
+ 
+-    const T& operator[](size_t i) const {
+-        TIXMLASSERT( i < _size );
++    const T& operator[](int i) const	{
++        TIXMLASSERT( i>= 0 && i < _size );
+         return _mem[i];
+     }
+ 
+@@ -265,18 +266,18 @@ public:
+         return _mem[ _size - 1];
+     }
+ 
+-    size_t Size() const {
++    int Size() const					{
+         TIXMLASSERT( _size >= 0 );
+         return _size;
+     }
+ 
+-    size_t Capacity() const {
++    int Capacity() const				{
+         TIXMLASSERT( _allocated >= INITIAL_SIZE );
+         return _allocated;
+     }
+ 
+-	void SwapRemove(size_t i) {
+-		TIXMLASSERT(i < _size);
++	void SwapRemove(int i) {
++		TIXMLASSERT(i >= 0 && i < _size);
+ 		TIXMLASSERT(_size > 0);
+ 		_mem[i] = _mem[_size - 1];
+ 		--_size;
+@@ -296,14 +297,14 @@ private:
+     DynArray( const DynArray& ); // not supported
+     void operator=( const DynArray& ); // not supported
+ 
+-    void EnsureCapacity( size_t cap ) {
++    void EnsureCapacity( int cap ) {
+         TIXMLASSERT( cap > 0 );
+         if ( cap > _allocated ) {
+-            TIXMLASSERT( cap <= SIZE_MAX / 2 / sizeof(T));
+-            const size_t newAllocated = cap * 2;
+-            T* newMem = new T[newAllocated];
++            TIXMLASSERT( cap <= INT_MAX / 2 );
++            const int newAllocated = cap * 2;
++            T* newMem = new T[static_cast<unsigned int>(newAllocated)];
+             TIXMLASSERT( newAllocated >= _size );
+-            memcpy( newMem, _mem, sizeof(T) * _size );	// warning: not using constructors, only works for PODs
++            memcpy( newMem, _mem, sizeof(T)*static_cast<size_t>(_size) );	// warning: not using constructors, only works for PODs
+             if ( _mem != _pool ) {
+                 delete [] _mem;
+             }
+@@ -313,9 +314,9 @@ private:
+     }
+ 
+     T*  _mem;
+-    T   _pool[INITIAL_SIZE];
+-    size_t _allocated;		// objects allocated
+-    size_t _size;			// number objects in use
++    T   _pool[static_cast<size_t>(INITIAL_SIZE)];
++    int _allocated;		// objects allocated
++    int _size;			// number objects in use
+ };
+ 
+ 
+@@ -329,7 +330,7 @@ public:
+     MemPool() {}
+     virtual ~MemPool() {}
+ 
+-    virtual size_t ItemSize() const = 0;
++    virtual int ItemSize() const = 0;
+     virtual void* Alloc() = 0;
+     virtual void Free( void* ) = 0;
+     virtual void SetTracked() = 0;
+@@ -339,7 +340,7 @@ public:
+ /*
+ 	Template child class to create pools of the correct type.
+ */
+-template< size_t ITEM_SIZE >
++template< int ITEM_SIZE >
+ class MemPoolT : public MemPool
+ {
+ public:
+@@ -361,10 +362,10 @@ public:
+         _nUntracked = 0;
+     }
+ 
+-    virtual size_t ItemSize() const override {
++    virtual int ItemSize() const override{
+         return ITEM_SIZE;
+     }
+-    size_t CurrentAllocs() const {
++    int CurrentAllocs() const		{
+         return _currentAllocs;
+     }
+ 
+@@ -375,7 +376,7 @@ public:
+             _blockPtrs.Push( block );
+ 
+             Item* blockItems = block->items;
+-            for( size_t i = 0; i < ITEMS_PER_BLOCK - 1; ++i ) {
++            for( int i = 0; i < ITEMS_PER_BLOCK - 1; ++i ) {
+                 blockItems[i].next = &(blockItems[i + 1]);
+             }
+             blockItems[ITEMS_PER_BLOCK - 1].next = 0;
+@@ -416,7 +417,7 @@ public:
+         --_nUntracked;
+     }
+ 
+-    size_t Untracked() const {
++    int Untracked() const {
+         return _nUntracked;
+     }
+ 
+@@ -447,10 +448,10 @@ private:
+     DynArray< Block*, 10 > _blockPtrs;
+     Item* _root;
+ 
+-    size_t _currentAllocs;
+-    size_t _nAllocs;
+-    size_t _maxAllocs;
+-    size_t _nUntracked;
++    int _currentAllocs;
++    int _nAllocs;
++    int _maxAllocs;
++    int _nUntracked;
+ };
+ 
+ 
+@@ -891,7 +892,7 @@ public:
+ 
+ 		If the 'target' is null, then the nodes will
+ 		be allocated in the current document. If 'target'
+-        is specified, the memory will be allocated in the
++        is specified, the memory will be allocated is the
+         specified XMLDocument.
+ 
+ 		NOTE: This is probably not the correct tool to
+@@ -1980,11 +1981,11 @@ private:
+ 	void PushDepth();
+ 	void PopDepth();
+ 
+-    template<class NodeType, size_t PoolElementSize>
++    template<class NodeType, int PoolElementSize>
+     NodeType* CreateUnlinkedNode( MemPoolT<PoolElementSize>& pool );
+ };
+ 
+-template<class NodeType, size_t PoolElementSize>
++template<class NodeType, int PoolElementSize>
+ inline NodeType* XMLDocument::CreateUnlinkedNode( MemPoolT<PoolElementSize>& pool )
+ {
+     TIXMLASSERT( sizeof( NodeType ) == PoolElementSize );
+@@ -2314,7 +2315,7 @@ public:
+     	of the XML file in memory. (Note the size returned
+     	includes the terminating null.)
+     */
+-    size_t CStrSize() const {
++    int CStrSize() const {
+         return _buffer.Size();
+     }
+     /**
+@@ -2374,7 +2375,7 @@ private:
+ };
+ 
+ 
+-} // namespace tinyxml2
++}	// tinyxml2
+ 
+ #if defined(_MSC_VER)
+ #   pragma warning(pop)
+diff --git a/xmltest.cpp b/xmltest.cpp
+old mode 100644
+new mode 100755
+index f7408d1..ae97604
+--- a/xmltest.cpp
++++ b/xmltest.cpp
+@@ -1005,7 +1005,7 @@ int main( int argc, const char ** argv )
+ 			FILE* fp1 = fopen("resources/out/printer_1.xml", "w");
+ 			XMLPrinter printer(fp1);
+ 
+-			printer.PushDeclaration("version = '1.0' encoding = 'utf-8'");
++			printer.PushDeclaration("version = '1.0' enconding = 'utf-8'");
+ 
+ 			printer.OpenElement("foo");
+ 			printer.PushAttribute("attrib-text", "text");
+@@ -1096,7 +1096,7 @@ int main( int argc, const char ** argv )
+ 
+ 			const XMLDeclaration* declaration = cdoc.FirstChild()->ToDeclaration();
+ 			const char* declaration_value = declaration->Value();
+-			XMLTest("PushDeclaration() test", "version = '1.0' encoding = 'utf-8'", declaration_value);
++			XMLTest("PushDeclaration() test", "version = '1.0' enconding = 'utf-8'", declaration_value);
+ 		}
+ 	}
+ 
+@@ -1642,7 +1642,7 @@ int main( int argc, const char ** argv )
+ 
+ 		static const char* result  = "\xef\xbb\xbf<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+ 		XMLTest( "BOM and default declaration", result, printer.CStr(), false );
+-		XMLTest( "CStrSize", true, printer.CStrSize() == 42, false );
++		XMLTest( "CStrSize", 42, printer.CStrSize(), false );
+ 	}
+ 	{
+ 		const char* xml = "<ipxml ws='1'><info bla=' /></ipxml>";
+@@ -2639,7 +2639,7 @@ int main( int argc, const char ** argv )
+             "<?xml version=\"1.0\"?>\n"					// 2 DecL
+             "<root>\r\n"								// 3 Element
+             "\n"										// 4
+-            "text containing new line \n"				// 5 Text
++            "text contining new line \n"				// 5 Text
+             " and also containing crlf \r\n"			// 6
+             "<sub><![CDATA[\n"							// 7 Element Text
+             "cdata containing new line \n"				// 8
+@@ -2666,35 +2666,6 @@ int main( int argc, const char ** argv )
+     	doc.PrintError();
+     }
+ 
+-	// ---------- CVE-2024-50615 -----------
+-	{
+-		const char* xml = "<Hello value='12&#65;34' value2='56&#x42;78'>Text</Hello>";
+-		XMLDocument doc;
+-		doc.Parse(xml);
+-		const char* value = doc.FirstChildElement()->Attribute("value");
+-		const char* value2 = doc.FirstChildElement()->Attribute("value2");
+-		XMLTest("Test attribute encode", false, doc.Error());
+-		XMLTest("Test decimal value", value, "12A34");
+-		XMLTest("Test hex encode", value2, "56B78");
+-	}
+-
+-	{
+-		const char* xml = "<Hello value='&#ABC9000000065;' value2='&#xffffffff;' value3='&#5000000000;' value4='&#x00000045;' value5='&#x000000000000000021;'>Text</Hello>";
+-		XMLDocument doc;
+-		doc.Parse(xml);
+-		const char* value = doc.FirstChildElement()->Attribute("value");
+-		const char* value2 = doc.FirstChildElement()->Attribute("value2");
+-		const char* value3 = doc.FirstChildElement()->Attribute("value3");
+-		const char* value4 = doc.FirstChildElement()->Attribute("value4");
+-		const char* value5 = doc.FirstChildElement()->Attribute("value5");
+-		XMLTest("Test attribute encode", false, doc.Error());
+-		XMLTest("Test attribute encode too long value", value, "&#ABC9000000065;"); // test long value
+-		XMLTest("Test attribute encode out of unicode range", value2, "&#xffffffff;"); // out of unicode range
+-		XMLTest("Test attribute encode out of int max value", value3, "&#5000000000;"); // out of int max value
+-		XMLTest("Test attribute encode with a Hex value", value4, "E"); // hex value in unicode value
+-		XMLTest("Test attribute encode with a Hex value", value5, "!"); // hex value in unicode value
+-	}
+-
+     // ----------- Performance tracking --------------
+ 	{
+ #if defined( _MSC_VER )
