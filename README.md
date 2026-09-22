@@ -145,6 +145,7 @@ work on any device rather than being wired into this tree.
 |---|---|
 | `advanced-restart` | Advanced restart in the power menu |
 | `dark-default` | Default to dark theme |
+| `bringup` | Debug build: adbd from boot with no authorisation prompt, plus persistent logcat, so a build that never reaches the lock screen can still be traced. **Never hand out an image built with this** — it accepts adb from any host. |
 | `fdroid` | F-Droid app store + Privileged Extension (silent installs/updates) |
 | `firefox` | Firefox (Fennec F-Droid) as the browser, replacing Jelly — still available, but 320 MB staged, so no preset carries it now |
 | `fulguris` | Fulguris as the browser, replacing Jelly — a WebView browser, 9 MB where Fennec stages 320 MB |
@@ -159,6 +160,9 @@ work on any device rather than being wired into this tree.
 | `minimal-home` | Minimal home screen: hotseat only, no second page |
 | `k9` | K-9 Mail (the Thunderbird for Android codebase) as the mail client |
 | `nav-icons` | Nextbit Robin style nav-bar icons, drawn as scalable tintable vectors (on every preset) |
+| `nextcloud` | Nextcloud bundle: Files, Talk, NextPush, Deck, NC Passwords, Notes, DAVx5, Tasks — the current F-Droid build of each |
+| `nextcloud-core` | Nextcloud, the four that make the phone a client: Files, Talk, NextPush, DAVx5 |
+| `openvpn` | OpenVPN for Android (`de.blinkt.openvpn`) as a bundled VPN client — lineage-24.0 only, that being the branch its patch is verified on |
 | `nfc-off` | NFC off by default |
 | `oem` | Reclaimed stock-ROM boot animation, wallpapers and sounds — the Nextbit Robin's here, see *Presets* |
 | `root` | Magisk baked into the boot image, so the zip flashes pre-rooted |
@@ -166,6 +170,7 @@ work on any device rather than being wired into this tree.
 | `teal-skin` | Teal accent — fixed #009D94 Monet preset seed |
 | `teal-wallpaper` | Teal-shag default wallpaper (baked into framework-res) |
 | `termoneplus` | TermOne Plus terminal emulator |
+| `syncthing-fork` | Syncthing-Fork: continuous file sync between your own devices, no server or account |
 | `themed-icons` | Themed (monochrome) app icons on by default |
 
 ## Device patches
