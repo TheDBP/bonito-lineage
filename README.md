@@ -114,8 +114,11 @@ behaviour of its own. Same as the 22.2 branch; `clean` is the right first attemp
 |---|---|---|
 | `clean` | `turbo-clean` | nothing — this is the baseline |
 | `libre` | `turbo-libre` | `fdroid`, `fulguris`, `k9`, `termoneplus`, `kdeconnect`, `connectbot`, `linphone` |
-| `full` | `turbo` | `fdroid`, `fulguris`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `root`, `connectbot`, `linphone` |
+| `full` | `turbo` | `fdroid`, `fulguris`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `connectbot`, `linphone` |
 | `stock` | `stock` | nothing, and **not the shared set either** — plain LineageOS plus only the patches that make this hardware run. Reserved by the forge, so it needs no row in `device.conf`. Use it to tell our bugs from upstream's. |
+
+`root` is deliberately in no preset: Magisk in the boot image is a decision per build, not a
+property of "the one with everything". Add it with `EXTRA_OPTIONS=root`.
 
 Every preset also carries the shared set, which is what makes this build look and behave the way
 it does regardless of which preset you pick:
