@@ -105,6 +105,20 @@ Only prebuilt apexes are affected — the 90 this tree builds are already ext4 a
 them with `grep -c apex /proc/mounts`, never `ls /apex`, which returns nothing without permission
 and reads as zero.
 
+### Partition budget
+
+`super` is 4,072,669,184 bytes and there is very little slack. The ext4 repack costs real space,
+because EROFS is compressed and ext4 is not: the GApps apex goes 146.5 MB → 206 MB, +68 MiB on
+`/product`. That overran `BOARD_SUPER_PARTITION_SIZE` by 25.4 MiB and failed the build outright in
+`check_partition_sizes`, which is why `linphone` (57 MB) is in no preset here.
+
+apexer offers `ext4`, `f2fs` and `erofs` only — no squashfs — and this kernel's f2fs predates
+compression, so there is no compressed-but-mountable option to recover it with.
+
+Measured after the repack: `/product/app` 1023 MB, `priv-app` 315 MB, `apex` 206 MB, `media` 78 MB.
+The big single items are NextcloudTalk 157 MB, SyncthingFork 66 MB, Linphone 57 MB. Adding anything
+of that size needs something else removed first.
+
 **Velvet** — the Google app and Assistant, the single largest component — is dropped outright by
 the option's own patch on every branch, so it does not ship either way.
 
@@ -138,8 +152,8 @@ behaviour of its own. Same as the 22.2 branch; `clean` is the right first attemp
 | preset | tag | adds over `clean` |
 |---|---|---|
 | `clean` | `turbo-clean` | nothing — this is the baseline |
-| `libre` | `turbo-libre` | `fdroid`, `fulguris`, `k9`, `termoneplus`, `kdeconnect`, `connectbot`, `linphone` |
-| `full` | `turbo` | `fdroid`, `fulguris`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `connectbot`, `linphone` |
+| `libre` | `turbo-libre` | `fdroid`, `fulguris`, `k9`, `termoneplus`, `kdeconnect`, `connectbot` |
+| `full` | `turbo` | `fdroid`, `fulguris`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `connectbot` |
 | `stock` | `stock` | nothing, and **not the shared set either** — plain LineageOS plus only the patches that make this hardware run. Reserved by the forge, so it needs no row in `device.conf`. Use it to tell our bugs from upstream's. |
 
 `root` is deliberately in no preset: Magisk in the boot image is a decision per build, not a
@@ -178,7 +192,7 @@ work on any device rather than being wired into this tree.
 | `firefox` | Firefox (Fennec F-Droid) as the browser, replacing Jelly — still available, but 320 MB staged, so no preset carries it now |
 | `fulguris` | Fulguris as the browser, replacing Jelly — a WebView browser, 9 MB where Fennec stages 320 MB |
 | `connectbot` | ConnectBot: an SSH client with saved hosts, keys and port forwarding |
-| `linphone` | Linphone: a SIP client, for voice over data where the device has no VoLTE |
+| `linphone` | Linphone: a SIP client, for voice over data where the device has no VoLTE. **In no preset on this device** — bonito's VoLTE and VoWiFi both work, so it is redundant here, and `/product` has no room to spare: see *Partition budget*. `EXTRA_OPTIONS=linphone` if you want it anyway |
 | `gapps` | Google apps: Play Store and GMS from MindTheGapps, plus Google's versions of the stock apps |
 | `google-feed-off` | Google feed (-1 screen) off by default |
 | `home-defaults` | Home screen defaults: no icon labels, no auto-add of new apps |
