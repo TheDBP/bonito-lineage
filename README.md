@@ -24,6 +24,31 @@ Not working, and why:
 
 Not gaps: wireless charging (the 3a series has no coil).
 
+## Build variant: parked on `user`, may go back
+
+`LUNCH_TARGET` is the **user** variant. That was the right answer to "why is adbd running on first
+boot" — it is, and `ro.debuggable=0` with no Rooted-debugging toggle confirms it.
+
+It costs more than expected in recovery. `bootable/recovery/recovery_main.cpp`:
+
+```c
+if (get_build_type() != "userdebug") device->RemoveMenuItemForAction(Device::ENABLE_ADB);
+if (get_build_type() == "user") { RemoveMenuItemForAction(WIPE_SYSTEM); RemoveMenuItemForAction(MOUNT_SYSTEM); }
+```
+
+So a `user` build loses **Enable ADB**, **Mount/unmount system** and **Wipe system** from recovery.
+Sideload still works — recovery starts adbd when the bootloader is unlocked, not only when the build
+is debuggable — but it needs the authorisation prompt accepted **on the screen**, which is no help on
+a device whose screen is the problem.
+
+Parked 2026-09-23: go back to `userdebug` (probably with `bringup`) after the ether VoLTE testing,
+because tracing live matters more right now than adbd being off at boot.
+
+**Flipping the variant is a full rebuild** (~120k targets, hours) because it invalidates `out/`.
+Two flips is two rebuilds. If the only thing wanted is recovery ADB, a device patch dropping that
+one `get_build_type()` gate is an incremental build instead — a deliberate weakening of an upstream
+safety gate, so it belongs behind an option rather than on by default.
+
 ## The kernel gate
 
 Android 16+ needs eBPF features this device's 4.9 kernel does not have, and no 4.14+ kernel exists
