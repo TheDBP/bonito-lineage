@@ -152,8 +152,8 @@ behaviour of its own. Same as the 22.2 branch; `clean` is the right first attemp
 | preset | tag | adds over `clean` |
 |---|---|---|
 | `clean` | `turbo-clean` | nothing — this is the baseline |
-| `libre` | `turbo-libre` | `fdroid`, `fulguris`, `k9`, `termoneplus`, `kdeconnect`, `connectbot` |
-| `full` | `turbo` | `fdroid`, `fulguris`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `connectbot` |
+| `libre` | `turbo-libre` | `fdroid`, `k9`, `termoneplus`, `kdeconnect`, `connectbot` |
+| `full` | `turbo` | `fdroid`, `gapps`, `k9`, `termoneplus`, `kdeconnect`, `connectbot` |
 | `stock` | `stock` | nothing, and **not the shared set either** — plain LineageOS plus only the patches that make this hardware run. Reserved by the forge, so it needs no row in `device.conf`. Use it to tell our bugs from upstream's. |
 
 `root` is deliberately in no preset: Magisk in the boot image is a decision per build, not a
@@ -190,7 +190,7 @@ work on any device rather than being wired into this tree.
 | `bringup` | Debug build: adbd from boot with no authorisation prompt, plus persistent logcat, so a build that never reaches the lock screen can still be traced. **Never hand out an image built with this** — it accepts adb from any host. |
 | `fdroid` | F-Droid app store + Privileged Extension (silent installs/updates) |
 | `firefox` | Firefox (Fennec F-Droid) as the browser, replacing Jelly — still available, but 320 MB staged, so no preset carries it now |
-| `fulguris` | Fulguris as the browser, replacing Jelly — a WebView browser, 9 MB where Fennec stages 320 MB |
+| `fulguris` | Fulguris as the browser, replacing Jelly — a WebView browser, 9 MB where Fennec stages 320 MB. **In no preset here**: as the only browser it has no way to show its privacy policy or terms before you accept them, since there is nothing else to read them in. Dropping it restores Jelly (the option `overrides: ["Jelly"]`). `EXTRA_OPTIONS=fulguris` to put it back |
 | `connectbot` | ConnectBot: an SSH client with saved hosts, keys and port forwarding |
 | `linphone` | Linphone: a SIP client, for voice over data where the device has no VoLTE. **In no preset on this device** — bonito's VoLTE and VoWiFi both work, so it is redundant here, and `/product` has no room to spare: see *Partition budget*. `EXTRA_OPTIONS=linphone` if you want it anyway |
 | `gapps` | Google apps: Play Store and GMS from MindTheGapps, plus Google's versions of the stock apps |
@@ -217,7 +217,7 @@ work on any device rather than being wired into this tree.
 
 ## Device patches
 
-60 patches across 16 upstream projects, applied at build time from
+61 patches across 16 upstream projects, applied at build time from
 `overlay/patches/`. Nothing here is a fork: each is a single commit against the upstream tree,
 replayed on every build, so upstream stays upstream and what we changed stays legible.
 
@@ -522,6 +522,11 @@ The blob repo (TheMuppets, lineage-22.2 branch — there is no 24.0 one). The pa
   forced plane disables, CRTC `NOMODE` and the composer's own `drm_atomic.c:868` "FB set but no
   CRTC" warning all sit at zero across a dozen theme changes, where the warning previously fired
   continuously.
+
+- **0002 drop the FeliCa/Osaifu-Keitai apps** — five `MobileFeliCa*` apps and three `felica/*.cfg`
+  files come from the stock blob set, because the 3a XL shipped in Japan with FeliCa mobile
+  payments. This unit does not report `android.hardware.nfc.felica`, so none of it can function;
+  it cost ~11 MB on a partition with ~30 MiB of slack and put a Japanese wallet app in the launcher.
 
 ### `external/tinyxml2`
 

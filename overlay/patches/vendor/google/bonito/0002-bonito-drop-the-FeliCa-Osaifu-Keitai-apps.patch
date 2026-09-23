@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDBP <TheDBP@users.noreply.github.com>
+Date: Wed, 23 Sep 2026 09:43:47 -0400
+Subject: [PATCH] bonito: drop the FeliCa/Osaifu-Keitai apps
+
+Five MobileFeliCa* apps and three felica cfg files come from the stock blob set because the 3a XL
+shipped in Japan with FeliCa mobile payments. This unit does not report android.hardware.nfc.felica,
+so none of it can work; it cost ~11 MB on /product and put a Japanese wallet app in the launcher.
+
+---
+ bonito-vendor.mk | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/bonito-vendor.mk b/bonito-vendor.mk
+index e51b38d..d1a2feb 100644
+--- a/bonito-vendor.mk
++++ b/bonito-vendor.mk
+@@ -7,9 +7,6 @@ PRODUCT_SOONG_NAMESPACES += \
+ 
+ PRODUCT_COPY_FILES += \
+     vendor/google/bonito/proprietary/product/etc/ambient/matcher_tah.leveldb:$(TARGET_COPY_OUT_PRODUCT)/etc/ambient/matcher_tah.leveldb \
+-    vendor/google/bonito/proprietary/product/etc/felica/common.cfg:$(TARGET_COPY_OUT_PRODUCT)/etc/felica/common.cfg \
+-    vendor/google/bonito/proprietary/product/etc/felica/mfm.cfg:$(TARGET_COPY_OUT_PRODUCT)/etc/felica/mfm.cfg \
+-    vendor/google/bonito/proprietary/product/etc/felica/mfs.cfg:$(TARGET_COPY_OUT_PRODUCT)/etc/felica/mfs.cfg \
+     vendor/google/bonito/proprietary/product/etc/firmware/music_detector.descriptor:$(TARGET_COPY_OUT_PRODUCT)/etc/firmware/music_detector.descriptor \
+     vendor/google/bonito/proprietary/product/etc/firmware/music_detector.sound_model:$(TARGET_COPY_OUT_PRODUCT)/etc/firmware/music_detector.sound_model \
+     vendor/google/bonito/proprietary/product/etc/permissions/com.android.omadm.service.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/com.android.omadm.service.xml \
+@@ -42,13 +39,11 @@ PRODUCT_COPY_FILES += \
+     vendor/google/bonito/proprietary/system_ext/priv-app/EuiccSupportPixel/esim-v1.img:$(TARGET_COPY_OUT_SYSTEM_EXT)/priv-app/EuiccSupportPixel/esim-v1.img
+ 
+ PRODUCT_PACKAGES += \
++    # FeliCa/Osaifu-Keitai (MobileFeliCa*) dropped: Japanese-market mobile wallet. This unit does
++    # not report android.hardware.nfc.felica, so the stack cannot work, and it was ~11 MB plus a
++    # launcher entry on a partition with ~30 MiB of slack.
+     libdmengine \
+     libdmjavaplugin \
+-    MobileFeliCaClient \
+-    MobileFeliCaMenuMainApp \
+-    MobileFeliCaSettingApp \
+-    MobileFeliCaWebPlugin \
+-    MobileFeliCaWebPluginBoot \
+     PixelCameraServicesBonito \
+     VZWAPNLib \
+     AmbientSensePrebuilt \
