@@ -80,6 +80,31 @@ NikGapps has no Android 17 build — it stops rather than guessing, which is rig
 version-specific and a mismatch is silent, the apps install and are simply built for another
 platform. MindTheGapps 17 is used for that half too.
 
+In practice MindTheGapps carries **none** of those seven apps, so the swap step stages nothing and
+Lineage's own apps are kept. That is what we want here, so `WITH_GAPPS_EXTRAS=false` says it
+explicitly — that switch turns off the download, the extractor and `options/gapps/require.sh`
+together. Do not instead loosen the extractor: it and `require.sh` guard the same invariant, so
+weakening one leaves them disagreeing and the build still fails, one stage later.
+
+**GmsCore needs the APEX repack on this device.** Android 15+ builds APEX payloads as EROFS and
+this kernel is 4.9 with no `CONFIG_EROFS_FS`, so the one prebuilt apex MindTheGapps ships cannot be
+mounted:
+
+```
+apexd: Mounting failed for package /product/apex/com.google.android.gmssystem.prodvic.apex: No such device
+```
+
+GmsCore lives only inside that apex, so Play Services simply did not exist: SetupWizard hung on
+"Just a sec" forever and four Google processes crash-looped on `Failed to find provider
+com.google.android.gsf.gservices`, while Play Store, GSF and SetupWizard — plain APKs — installed
+fine. `APEX_EROFS_UNSUPPORTED=true` repacks the payload as ext4 at build time and re-signs it from
+`KEYS_DIR`; the key is made once with `forge/tools/make-apex-key.sh` and must be kept, because an
+OTA updating that apex has to be signed with the same one.
+
+Only prebuilt apexes are affected — the 90 this tree builds are already ext4 and mount fine. Count
+them with `grep -c apex /proc/mounts`, never `ls /apex`, which returns nothing without permission
+and reads as zero.
+
 **Velvet** — the Google app and Assistant, the single largest component — is dropped outright by
 the option's own patch on every branch, so it does not ship either way.
 
