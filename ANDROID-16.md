@@ -40,7 +40,7 @@ small: 8 commits / 5 files for 15 -> 16, then 7 mostly-deletion commits for 16 -
 entirely compat shims and cleanup.
 
 The cost is not there. It is in vendor-blob and HAL compatibility -- which for a Pixel with
-published binaries is a far better position than the msm8992/msm8994 work on the Nextbit Robin ([TheDBP/ether-lineage](https://github.com/TheDBP/ether-lineage)).
+published binaries is a far better position than the msm8992/msm8994 work on the Nextbit Robin ([TheDBP/ether-lineage-20.0-volte](https://github.com/TheDBP/ether-lineage-20.0-volte)).
 
 Dependencies to sync alongside the device tree: `android_device_google_gs-common`,
 `android_kernel_google_msm-4.9`, `android_packages_apps_ElmyraService`.
