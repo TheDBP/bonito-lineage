@@ -4,8 +4,8 @@ The **Pixel 3a XL** (`bonito`) on Android 17, running an Android 15 kernel and A
 blobs. It boots, and the hardware works. LineageOS stopped supporting this device after a stale
 `lineage-23.0` branch; 23.x will freeze once 24 matures, so the target went straight to 24.
 
-> For a supported build, use the [`lineage-22.2`](../../tree/lineage-22.2) branch. This one is
-> ours, not upstream's.
+> This build is ours, not upstream's. If you want a supported one, take LineageOS's own —
+> this repo is not where that lives, and does not try to be.
 
 ## State
 
